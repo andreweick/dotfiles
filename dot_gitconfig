@@ -3,7 +3,7 @@
 [user]
 	email = maeick@missionfocus.com
 	name = M. Andrew Eick
-	# signingkey = EAE0AEB4F10B6BFB
+	signingkey = EAE0AEB4F10B6BFB
 [gpg]
 	# program = /usr/local/bin/gpg
 
