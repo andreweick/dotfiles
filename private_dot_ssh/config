@@ -1,0 +1,23 @@
+# remember to symlink this to your ~/.ssh/config
+# ln -s ~/Development/dotfiles/ssh/config ~/.ssh/config
+
+LogLevel=quiet
+VisualHostKey yes
+PKCS11Provider /Library/OpenSC/lib/pkcs11/opensc-pkcs11.so
+
+Host *.missionfocus.com
+  ForwardAgent yes
+
+host *gs.mil
+  StrictHostKeyChecking no
+  UserKnownHostsFile /dev/null
+
+Host *eick.co
+  User root
+  StrictHostKeyChecking no
+  UserKnownHostsFile /dev/null
+
+Host 10.1.1.*
+  Port 22
+  ProxyJump catfish.missionfocus.com
+
