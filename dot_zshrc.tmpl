@@ -4,6 +4,7 @@
 # Andy's aliases
 # alias cdr="cd $(git rev-parse --show-toplevel)"
 
+{{ if (eq .chezmoi.os "darwin") }}
 # YUBIKEY-AGENT as ssh
 #
 # To use this SSH agent, set this variable in your ~/.zshrc and/or ~/.bashrc:
@@ -16,6 +17,8 @@
 # ❯ ~ brew services start yubikey-agent
 
 export SSH_AUTH_SOCK="/usr/local/var/run/yubikey-agent.sock"
+
+{{ end }}
 
 
 # Path to your oh-my-zsh installation.
