@@ -1,0 +1,7 @@
+{{ if eq .chezmoi.os "linux" -}}
+#!/bin/sh
+sudo apt install cowsay
+{{ else if eq .chezmoi.os "darwin" -}}
+#!/bin/sh
+brew install cowsay
+{{ end -}}
