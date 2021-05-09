@@ -1,7 +1,9 @@
 {{ if eq .chezmoi.os "linux" -}}
 #!/bin/sh
 sudo apt install cowsay
+sudo apt-get install jq
 {{ else if eq .chezmoi.os "darwin" -}}
 #!/bin/sh
 brew install cowsay
+brew install jq
 {{ end -}}
