@@ -8,7 +8,7 @@ PKCS11Provider /Library/OpenSC/lib/pkcs11/opensc-pkcs11.so
 Host *.missionfocus.com
   ForwardAgent yes
 
-host *gs.mil
+Host *gs.mil
   StrictHostKeyChecking no
   UserKnownHostsFile /dev/null
 
@@ -21,3 +21,6 @@ Host 10.1.1.*
   Port 22
   ProxyJump catfish.missionfocus.com
 
+Host willie.missionfocus.com
+  Port 22
+  ProxyJump catfish.missionfocus.com
