@@ -21,6 +21,6 @@ Host 10.1.1.*
   Port 22
   ProxyJump catfish.missionfocus.com
 
-Host willie.missionfocus.com
+Host willie.missionfocus.com shoeless.missionfocus.com lefty.missionfocus.com hank.missionfocus.com babe.missionfocus.com satchel.missionfocus.com sammy.missionfocus.com sandy.missionfocus.com joe.missionfocus.com
   Port 22
   ProxyJump catfish.missionfocus.com
