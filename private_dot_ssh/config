@@ -24,3 +24,10 @@ Host 10.1.1.*
 Host willie.missionfocus.com shoeless.missionfocus.com lefty.missionfocus.com hank.missionfocus.com babe.missionfocus.com satchel.missionfocus.com sammy.missionfocus.com sandy.missionfocus.com joe.missionfocus.com
   Port 22
   ProxyJump catfish.missionfocus.com
+
+# Jackie2 at the colo -- log in through the jumpbox as andy 
+Host jackie2
+  HostName jackie2.missionfocus.com
+  Port 22
+  ProxyJump catfish.missionfocus.com
+  User andy

@@ -1,2 +1,11 @@
 [default]
 region = us-east-1
+[profile edc]
+region = us-east-1
+[profile sandbox]
+region = us-east-1
+[profile oit]
+region = us-east-1
+[profile wasabi]
+region = us-east-1
+
