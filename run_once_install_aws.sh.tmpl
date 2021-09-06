@@ -1,0 +1,18 @@
+#!/bin/sh
+AWSCLI=$(mkdir $HOME/aws-cli)
+BIN=$(mkdir $HOME/bin)
+TEMPDIR=$(mktemp --directory --suffix=_aws)
+
+{{ if (eq .chezmoi.os "linux") }}
+
+{{ if (eq .chezmoi.arch "amd64") }}
+curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "$TEMPDIR/awscliv2.zip"
+{{ else if (eq .chezmoi.arch "aarch64") }}
+curl "https://awscli.amazonaws.com/awscli-exe-linux-aarch64.zip" -o "$TEMPDIR/awscliv2.zip"
+{{ end }}
+
+cd $TEMPDIR
+unzip awscliv2.zip
+$TEMPDIR/aws/install -i $AWSCLI -b $BIN
+
+{{ end }}
