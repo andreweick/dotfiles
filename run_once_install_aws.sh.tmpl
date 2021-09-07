@@ -1,6 +1,16 @@
 #!/bin/sh
-AWSCLI=$(mkdir $HOME/aws-cli)
-BIN=$(mkdir $HOME/bin)
+
+AWSCLI="$HOME/aws-cli"
+if [ ! -d "$AWSCLI" ]; then
+  mkdir -p $AWSCLI
+fi
+
+BIN=$HOME/bin
+if [ ! -d "$BIN" ]; then
+  mkdir -p $BIN
+fi
+
+
 TEMPDIR=$(mktemp --directory --suffix=_aws)
 
 {{ if (eq .chezmoi.os "linux") }}
@@ -12,7 +22,7 @@ curl "https://awscli.amazonaws.com/awscli-exe-linux-aarch64.zip" -o "$TEMPDIR/aw
 {{ end }}
 
 cd $TEMPDIR
-unzip awscliv2.zip
+unzip -q awscliv2.zip
 $TEMPDIR/aws/install -i $AWSCLI -b $BIN
 
 {{ end }}
