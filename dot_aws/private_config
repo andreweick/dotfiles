@@ -1,18 +1,22 @@
 [default]
 region = us-east-1
-[profile edc]
-region = us-east-1
-[profile sandbox]
-region = us-east-1
-[profile oit]
-region = us-east-1
-[profile wasabi]
-region = us-east-1
+
+[profile login]
+sso_start_url = https://missionfocus.awsapps.com/start
+sso_region = us-east-1
 
 [profile missionfocus]
 sso_start_url = https://missionfocus.awsapps.com/start
 sso_region = us-east-1
 sso_account_id = 909262413378
+sso_role_name = AWSAdministratorAccess
+region = us-east-1
+output = json
+
+[profile mf-oit]
+sso_start_url = https://missionfocus.awsapps.com/start
+sso_region = us-east-1
+sso_account_id = 671094943849
 sso_role_name = AWSAdministratorAccess
 region = us-east-1
 output = json
@@ -35,13 +39,14 @@ region = us-east-1
 output = json
 
 
-[profile imi-admin]
+[profile imi]
 sso_start_url = https://missionfocus.awsapps.com/start
 sso_region = us-east-1
 sso_account_id = 086551752002
 sso_role_name = AWSAdministratorAccess
 region = us-east-1
 output = json
+
 [profile mf-sandbox]
 sso_start_url = https://missionfocus.awsapps.com/start
 sso_region = us-east-1
@@ -49,13 +54,7 @@ sso_account_id = 255222579722
 sso_role_name = AWSAdministratorAccess
 region = us-east-1
 output = json
-[profile edc-admin]
-sso_start_url = https://missionfocus.awsapps.com/start
-sso_region = us-east-1
-sso_account_id = 755248711781
-sso_role_name = AWSAdministratorAccess
-region = us-east-1
-output = json
+
 [profile eick]
 sso_start_url = https://missionfocus.awsapps.com/start
 sso_region = us-east-1
@@ -63,3 +62,28 @@ sso_account_id = 755248711781
 sso_role_name = AWSAdministratorAccess
 region = us-east-1
 output = json
+
+[profile edc-sandbox]
+sso_start_url = https://missionfocus.awsapps.com/start
+sso_region = us-east-1
+sso_account_id = 367648361761
+sso_role_name = AWSAdministratorAccess
+region = us-east-1
+output = json
+
+[profile semiota-production]
+sso_start_url = https://missionfocus.awsapps.com/start
+sso_region = us-east-1
+sso_account_id = 332577886919
+sso_role_name = AWSAdministratorAccess
+region = us-east-1
+output = json
+
+[profile semiota-sandbox]
+sso_start_url = https://missionfocus.awsapps.com/start
+sso_region = us-east-1
+sso_account_id = 433846479973
+sso_role_name = AWSAdministratorAccess
+region = us-east-1
+output = json
+
