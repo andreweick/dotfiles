@@ -9,3 +9,57 @@ region = us-east-1
 [profile wasabi]
 region = us-east-1
 
+[profile missionfocus]
+sso_start_url = https://missionfocus.awsapps.com/start
+sso_region = us-east-1
+sso_account_id = 909262413378
+sso_role_name = AWSAdministratorAccess
+region = us-east-1
+output = json
+
+[profile mf-s3-rw]
+sso_start_url = https://missionfocus.awsapps.com/start
+sso_region = us-east-1
+sso_account_id = 455105156950
+sso_role_name = AWSAdministratorAccess
+region = us-east-1
+output = json
+
+
+[profile mf-s3-ro]
+sso_start_url = https://missionfocus.awsapps.com/start
+sso_region = us-east-1
+sso_account_id = 455105156950
+sso_role_name = AWSReadOnlyAccess
+region = us-east-1
+output = json
+
+
+[profile imi-admin]
+sso_start_url = https://missionfocus.awsapps.com/start
+sso_region = us-east-1
+sso_account_id = 086551752002
+sso_role_name = AWSAdministratorAccess
+region = us-east-1
+output = json
+[profile mf-sandbox]
+sso_start_url = https://missionfocus.awsapps.com/start
+sso_region = us-east-1
+sso_account_id = 255222579722
+sso_role_name = AWSAdministratorAccess
+region = us-east-1
+output = json
+[profile edc-admin]
+sso_start_url = https://missionfocus.awsapps.com/start
+sso_region = us-east-1
+sso_account_id = 755248711781
+sso_role_name = AWSAdministratorAccess
+region = us-east-1
+output = json
+[profile eick]
+sso_start_url = https://missionfocus.awsapps.com/start
+sso_region = us-east-1
+sso_account_id = 755248711781
+sso_role_name = AWSAdministratorAccess
+region = us-east-1
+output = json
