@@ -1,4 +1,4 @@
-export PATH=$HOME/bin:/usr/local/bin:$PATH
+export PATH=$HOME/bin:/usr/local/bin:/opt/homebrew/bin:$PATH
 
 # Andy's aliases
 # alias cdr="cd $(git rev-parse --show-toplevel)"
@@ -15,7 +15,7 @@ export PATH=$HOME/bin:/usr/local/bin:$PATH
 #   yubikey-agent -l /usr/local/var/run/yubikey-agent.sock
 # ❯ ~ brew services start yubikey-agent
 
-export SSH_AUTH_SOCK="/usr/local/var/run/yubikey-agent.sock"
+### export SSH_AUTH_SOCK="/usr/local/var/run/yubikey-agent.sock"
 
 {{ end }}
 
@@ -90,9 +90,9 @@ DISABLE_AUTO_UPDATE="true"
 # Custom plugins may be added to $ZSH_CUSTOM/plugins/
 # Example format: plugins=(rails git textmate ruby lighthouse)
 # Add wisely, as too many plugins slow down shell startup.
-plugins=(git)
+### plugins=(git)
 
-source $ZSH/oh-my-zsh.sh
+### source $ZSH/oh-my-zsh.sh
 
 # User configuration
 
@@ -120,6 +120,6 @@ source $ZSH/oh-my-zsh.sh
 # alias zshconfig="mate ~/.zshrc"
 # alias ohmyzsh="mate ~/.oh-my-zsh"
 
-export NVM_DIR="$HOME/.nvm"
-[ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"  # This loads nvm
-[ -s "$NVM_DIR/bash_completion" ] && \. "$NVM_DIR/bash_completion"  # This loads nvm bash_completion
+### export NVM_DIR="$HOME/.nvm"
+### [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"  # This loads nvm
+### [ -s "$NVM_DIR/bash_completion" ] && \. "$NVM_DIR/bash_completion"  # This loads nvm bash_completion
