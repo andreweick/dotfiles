@@ -1,69 +1,13 @@
-# Copy this file or single lines to ~/.gitconfig
-
 [user]
-	email = maeick@missionfocus.com
-	name = M. Andrew Eick
-	signingkey = EAE0AEB4F10B6BFB
+  email = "maeick@missionfocus.com"
+  name = "M. Andrew Eick"
+  signingkey = ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIGUUee06iP+CO2XUANghG9ANjhVj1hOzyrb+TDHRa5mM
 
-[alias]
-  branches = branch --sort=-committerdate --format='%(HEAD)%(color:yellow)%(refname:short) | %(color:bold green)%(committerdate:relative) | %(color:blue)%(subject)%(color:reset)' --color=always
-  co = checkout
-  # Log display from screencast, with train tracks.
-  l = log --graph --pretty=format':%C(yellow)%h%Cblue%d%Creset %s %C(white) %an, %ar%Creset'
-  # Alternate log display from Scott Chacon
-  lol = log --pretty=oneline --abbrev-commit --graph --decorate
-  # Other useful aliases:
-  unstage = reset HEAD
-  staged = diff --cached
-  unstaged = diff
-  current-branch = !git symbolic-ref -q HEAD | sed -e 's|^refs/heads/||'
-  # Usage: git track origin/feature-123-login-form
-  track = checkout -t
+[gpg]
+  format = ssh
 
-  # KSShow gives you the contents of an arbitrary sha in Kaleidoscope.
-  # To open the most recent commit on the current branch in Kaleidoscope
-  # `git ksshow`
-  # To open an arbitrary sha in Kaleidoscope
-  # `git ksshow some-sha`
+[gpg "ssh"]
+  program = "/Applications/1Password.app/Contents/MacOS/op-ssh-sign"
 
-  ksshow = "!sh -c 'SHA=${1:-HEAD}; git difftool -y -t Kaleidoscope $SHA^..$SHA;' -"
-
-
-  # To review HEAD with master as your mainline branch
-  # `git ksreview`
-  #
-  #To review a branch or sha when master is your mainline branch
-  #`git ksreview some-feature-branch-or-sha`
-
-  # To review a branch (or sha) by name with a custom mainline branch
-  # `git ksreview some-feature-branch-or-sha mainline-branch`
-
-  ksreview = "!sh -c 'SHA=${1:-HEAD}; BRANCH=${2:-master}; if [ $SHA == $BRANCH ] ; then SHA=HEAD; fi; git difftool -y -t Kaleidoscope $BRANCH...$SHA;' -"
-
-  # KSDiff is just a more compact version of `difftool -y -t Kaleidoscope` for people who don't use Kaleidoscope as the default difftool.
-  ksdiff = difftool -y -t Kaleidoscope
-  # To see the contents of the most recent commit
-  #`git ksdiff HEAD^..HEAD`
-
-[apply]
-  whitespace = warn
-
-[color]
-  diff = auto
-  status = auto
-  branch = auto
-  ui = true
-[help]
-  autocorrect = 1
-[status]
-  submodule = 1
-[push]
-  # Only push branches that have been set up to track a remote branch.
-  default = current
-[submodule]
-	recurse = true
-[filter "lfs"]
-	process = git-lfs filter-process
-	required = true
-	clean = git-lfs clean -- %f
-	smudge = git-lfs smudge -- %f
+[commit]
+  gpgsign = true
