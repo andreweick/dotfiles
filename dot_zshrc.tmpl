@@ -1,6 +1,14 @@
 export PATH=$HOME/bin:/usr/local/bin:/opt/homebrew/bin:$PATH
 
-# Andy's aliases
+
+# Set 1Password as my SSH agent
+export SSH_AUTH_SOCK=~/Library/Group\ Containers/2BUA8C4S2C.com.1password/t/agent.sock
+
+#1Password shell plugins (gh, )
+source /Users/maeick/.config/op/plugins.sh
+
+
+# Andy's OLD aliases
 # alias cdr="cd $(git rev-parse --show-toplevel)"
 
 {{ if (eq .chezmoi.os "darwin") }}
@@ -123,3 +131,7 @@ DISABLE_AUTO_UPDATE="true"
 ### export NVM_DIR="$HOME/.nvm"
 ### [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"  # This loads nvm
 ### [ -s "$NVM_DIR/bash_completion" ] && \. "$NVM_DIR/bash_completion"  # This loads nvm bash_completion
+
+# For starship
+eval "$(starship init zsh)"
+
