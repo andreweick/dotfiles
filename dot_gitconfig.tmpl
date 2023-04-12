@@ -1,0 +1,30 @@
+[user]
+  email = "maeick@missionfocus.com"
+  name = "M. Andrew Eick"
+  signingkey = ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIGUUee06iP+CO2XUANghG9ANjhVj1hOzyrb+TDHRa5mM
+
+[gpg]
+  format = ssh
+
+[gpg "ssh"]
+  program = "/Applications/1Password.app/Contents/MacOS/op-ssh-sign"
+
+[commit]
+  gpgsign = true
+
+{{ if eq .chezmoi.os "darwin" }}
+[diff]
+	tool = Kaleidoscope
+[difftool "Kaleidoscope"]
+	cmd = ksdiff --partial-changeset --relative-path \"$MERGED\" -- \"$LOCAL\" \"$REMOTE\"
+[difftool]
+	prompt = false
+	trustExitCode = true
+[merge]
+	tool = Kaleidoscope
+[mergetool "Kaleidoscope"]
+	cmd = ksdiff --merge --output \"$MERGED\" --base \"$BASE\" -- \"$LOCAL\" --snapshot \"$REMOTE\" --snapshot
+	trustExitCode = true
+[mergetool]
+	prompt = false
+{{ end }}

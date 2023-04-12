@@ -135,3 +135,6 @@ DISABLE_AUTO_UPDATE="true"
 # For starship
 eval "$(starship init zsh)"
 
+# For Volta (an nvm like thing that is supposed to be fast
+export VOLTA_HOME="$HOME/.volta"
+export PATH="$VOLTA_HOME/bin:$PATH"
