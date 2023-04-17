@@ -139,17 +139,15 @@ DISABLE_AUTO_UPDATE="true"
 ### [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"  # This loads nvm
 ### [ -s "$NVM_DIR/bash_completion" ] && \. "$NVM_DIR/bash_completion"  # This loads nvm bash_completion
 
-{{ if eq .chezmoi.os "darwin" }}
-# darwin
-# For starship
-eval "$(starship init zsh)"
+# For starship prompt, test if program exists, then set the prompt
+if command -v starship &> /dev/null
+then
+  eval "$(starship init zsh)"
+fi
 
-# For Volta (an nvm like thing that is supposed to be fast
-export VOLTA_HOME="$HOME/.volta"
-export PATH="$VOLTA_HOME/bin:$PATH"
-{{ else if eq .chezmoi.os "linux" }}
-# linux
-{{ else }}
-# other operating system
-{{ end }}
-
+# For Volta (an nvm like thing that is supposed to be fast)
+if command -v volta &> /dev/null
+then
+  export VOLTA_HOME="$HOME/.volta"
+  export PATH="$VOLTA_HOME/bin:$PATH"
+fi
