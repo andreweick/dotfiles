@@ -1,8 +1,15 @@
 export PATH=$HOME/bin:/usr/local/bin:/opt/homebrew/bin:$PATH
 
 
+{{ if eq .chezmoi.os "darwin" }}
+# darwin
 # Set 1Password as my SSH agent
 export SSH_AUTH_SOCK=~/Library/Group\ Containers/2BUA8C4S2C.com.1password/t/agent.sock
+{{ else if eq .chezmoi.os "linux" }}
+# linux
+{{ else }}
+# other operating system
+{{ end }}
 
 #1Password shell plugins (gh, )
 source /Users/maeick/.config/op/plugins.sh
@@ -132,9 +139,17 @@ DISABLE_AUTO_UPDATE="true"
 ### [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"  # This loads nvm
 ### [ -s "$NVM_DIR/bash_completion" ] && \. "$NVM_DIR/bash_completion"  # This loads nvm bash_completion
 
+{{ if eq .chezmoi.os "darwin" }}
+# darwin
 # For starship
 eval "$(starship init zsh)"
 
 # For Volta (an nvm like thing that is supposed to be fast
 export VOLTA_HOME="$HOME/.volta"
 export PATH="$VOLTA_HOME/bin:$PATH"
+{{ else if eq .chezmoi.os "linux" }}
+# linux
+{{ else }}
+# other operating system
+{{ end }}
+
