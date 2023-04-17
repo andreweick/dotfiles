@@ -11,9 +11,10 @@ export SSH_AUTH_SOCK=~/Library/Group\ Containers/2BUA8C4S2C.com.1password/t/agen
 # other operating system
 {{ end }}
 
-#1Password shell plugins (gh, )
-source /Users/maeick/.config/op/plugins.sh
-
+#1Password shell plugins (gh, ) if op program is installed
+if command -v op &> /dev/null
+  source /Users/maeick/.config/op/plugins.sh
+fi
 
 # Andy's OLD aliases
 # alias cdr="cd $(git rev-parse --show-toplevel)"
