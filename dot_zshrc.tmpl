@@ -14,11 +14,14 @@ export SSH_AUTH_SOCK=~/Library/Group\ Containers/2BUA8C4S2C.com.1password/t/agen
 #1Password shell plugins (gh, ) if op program is installed
 if command -v op &> /dev/null
 then
+{{ if eq .chezmoi.os "linux" }}
   # Shell completion 
-  eval "$(op completion zsh"; compdef _op op
+  eval "$(op completion zsh)"; compdef _op op
+{{ end }}
 
   # alias the login command
-  alias oplogin='eval $(op signin)'
+  # alias oplogin='eval $(op signin)'
+
   if [ -f "$HOME/.config/op/plugins.sh" ]
   then
     source $HOME/.config/op/plugins.sh
@@ -156,7 +159,7 @@ then
 fi
 
 # For Volta (an nvm like thing that is supposed to be fast)
-if command -v volta &> /dev/null
+if [ -d "$HOME/.volta" ]
 then
   export VOLTA_HOME="$HOME/.volta"
   export PATH="$VOLTA_HOME/bin:$PATH"
