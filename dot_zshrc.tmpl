@@ -14,7 +14,15 @@ export SSH_AUTH_SOCK=~/Library/Group\ Containers/2BUA8C4S2C.com.1password/t/agen
 #1Password shell plugins (gh, ) if op program is installed
 if command -v op &> /dev/null
 then
-  source /Users/maeick/.config/op/plugins.sh
+  # Shell completion 
+  eval "$(op completion zsh"; compdef _op op
+
+  # alias the login command
+  alias oplogin='eval $(op signin)'
+  if [ -f "$HOME/.config/op/plugins.sh" ]
+  then
+    source $HOME/.config/op/plugins.sh
+  fi
 fi
 
 # Andy's OLD aliases
