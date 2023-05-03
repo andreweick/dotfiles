@@ -1,5 +1,9 @@
 export PATH=$HOME/bin:/usr/local/bin:/opt/homebrew/bin:$PATH
 
+# Activate zsh autocompletions
+autoload -Uz compinit
+compinit
+
 
 {{ if eq .chezmoi.os "darwin" }}
 # darwin
@@ -7,6 +11,7 @@ export PATH=$HOME/bin:/usr/local/bin:/opt/homebrew/bin:$PATH
 export SSH_AUTH_SOCK=~/Library/Group\ Containers/2BUA8C4S2C.com.1password/t/agent.sock
 {{ else if eq .chezmoi.os "linux" }}
 # linux
+# 1password SSH isn't loaded
 {{ else }}
 # other operating system
 {{ end }}
@@ -18,7 +23,6 @@ then
   # Shell completion 
   eval "$(op completion zsh)"; compdef _op op
 {{ end }}
-
   # alias the login command
   alias oplogin='eval $(op signin)'
 
