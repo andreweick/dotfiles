@@ -1,7 +1,0 @@
-{{ if eq .chezmoi.os "darwin" -}}
-ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAACAQCjlsu5jBHobpFNomJrBo9PgdNEY1VS9oWqVzbxGPawjkXIwQNr/egJEDhDP1tTHg6vG8NT4AsNviIzD77cp/DbG2h6+wKclyLd8vEggv+EgbRXj/XmjwYC1fTgjYvnQM4M5b3lH0ltY6i274BnEuf5zM8mWkJubve2xZtgz0TiV+hM62voY9+NkfrOolvT5FFeIjIdi9awwD90cWrgZNymInhy4ne8KIun11zLnT6BC2rd2YfMXeK/5ghukyCffIZdVXDa1hS2BqDYr/arFR9ESt/ICYv75sWpUhK+1qhrXM+N8avQjiqPinHKLwMM+uNSmPWoLMxc1AEmkyA/+d4ZxhF0L4uslODimmy4FIO7iDYosejrlx3brhd3abfabpSUx0j8C0zgt+rduPZzf6AxB06xyjVT8ovfrIsq4bMcm6PAoZpvhUt+Y4IOj3IaWFWRgP/qKl0kxcaAymPZuiTWz6cRNASg8+4FfrEjfETbwZU7ZXCN5a1WoBk4yD34phPzMFAL2xDlL6DsYK7Du29gnjH7iUaEpkLCBTYxerymmrBm98GpwfoPQrmtvpx4fv5njoAE8rxJJpO7QXs8HaROhjHekWOtq9qmzNUYDe9wTZzgeWuob8t92JcPTNhcMKzU2idgblsNqOlcuJWArqTa2RvS4oNUmN0bz3V5z4KJJQ== maeick on sparky
-{{ else if eq .chezmoi.os "linux" -}}
-{{ range (gitHubKeys "andreweick") -}}
-{{   .Key }}
-{{ end -}}
-{{ end -}}
