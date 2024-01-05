@@ -32,6 +32,11 @@ then
   fi
 fi
 
+{{ if eq .chezmoi.os "linux" }}
+  export EDITOR=nvim
+  alias db='distrobox enter boxkit --name boxkit -- zellij'
+{{ end }}
+
 # Andy's OLD aliases
 # alias cdr="cd $(git rev-parse --show-toplevel)"
 
