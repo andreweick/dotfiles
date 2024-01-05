@@ -1,14 +1,20 @@
 [user]
   email = "maeick@missionfocus.com"
   name = "M. Andrew Eick"
+{{ if eq .chezmoi.os "darwin" }}
+  # Assume that 1password is installed if os x and I'll use that ssh key
   signingkey = ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIGUUee06iP+CO2XUANghG9ANjhVj1hOzyrb+TDHRa5mM
+{{ else }}
+  # vipers for now
+  signingkey = ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIPWpM0UAq4AMm2IEi9ol7xL5FoEA+rxDJo5nOv8GYuAw
+{{ end }}
 
 [gpg]
   format = ssh
-
+{{ if eq .chezmoi.os "darwin" }}
 [gpg "ssh"]
   program = "/Applications/1Password.app/Contents/MacOS/op-ssh-sign"
-
+{{ end }}
 [commit]
   gpgsign = true
 
