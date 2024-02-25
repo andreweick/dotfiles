@@ -180,3 +180,8 @@ export RCLONE_PASSWORD_COMMAND="op read op://personal/rclone/password"
 
 #zoxide isn't configured yet
 # eval "$(zoxide init zsh)"
+
+if command -v atuin &> /dev/null
+then
+  eval "$(atuin init zsh)"
+fi
