@@ -16,9 +16,9 @@ end
 config.color_scheme = 'Dracula'
 
 -- For Operator Mono
--- config.font = wezterm.font('Operator Mono SSm', { weight = 'Book', italic = false })
+config.font = wezterm.font('Operator Mono SSm', { weight = 'Book', italic = false })
+-- config.font = wezterm.font('MonoLisa', { weight = 'Medium', italic = false })
 
-config.font = wezterm.font('MonoLisa', { weight = 'Medium', italic = false })
 config.font_size = 16
 
 
