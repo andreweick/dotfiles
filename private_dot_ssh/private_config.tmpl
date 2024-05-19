@@ -1,0 +1,9 @@
+{{ if eq .chezmoi.os "darwin" }}
+# On OS X I'll assume I have 1password installed.  [Use 1Password as SSH Agent store](https://developer.1password.com/docs/ssh/get-started#step-3-turn-on-the-1password-ssh-agent)
+Host *
+  IdentityAgent "~/Library/Group Containers/2BUA8C4S2C.com.1password/t/agent.sock"
+  StrictHostKeyChecking no
+{{ else }}
+Host *
+  StrictHostKeyChecking no
+{{ end }}
