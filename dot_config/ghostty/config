@@ -1,0 +1,15 @@
+# The font families to use.
+#
+# You can generate the list of valid values using the CLI:
+#
+#     ghostty +list-fonts
+#
+# This configuration can be repeated multiple times to specify preferred
+
+# font-family = Operator Mono SSm
+# font-style = Book
+# font-size = 16
+
+font-family = MonoLisa Variable
+font-style = Medium
+font-size = 25
