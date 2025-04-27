@@ -7,5 +7,6 @@ key.txt.age
 # If the file ~/.config/age/key.txt **DOES NOT** exist, 
 # ignore the enclosed files
 {{ if (not (stat (joinPath .chezmoi.homeDir ".config" "age" "key.txt"))) }}
+*/rclone.conf
  
 {{ end }}
