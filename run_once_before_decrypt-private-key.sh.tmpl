@@ -1,6 +1,13 @@
 #!/bin/sh
 
-if [ ! -f "${HOME}/.config/age/key.txt" ]; then
+# Set the environment variable AGE_PASSWORD and then do a chezmoi apply
+# If the environment variable is set, then decrypt the private key to the ~/.config/age/key.txt location
+
+# In one password at "Age Encryption Password and Key(s)"
+# https://start.1password.com/open/i?a=YJAIWSB6EBCO7HXQESFT6YWGX4&v=oxqpfcqusej4mou4qen6np2bqe&i=xcjfxrcih4tzajtsocvlkpjgm4&h=missionfocus.1password.com
+# "op://Private/xcjfxrcih4tzajtsocvlkpjgm4/password"
+
+if [ -n "$AGE_PASSWORD" && ! -f "${HOME}/.config/age/key.txt" ]; then
     mkdir -p "${HOME}/.config/age"
     chezmoi age decrypt --output "${HOME}/.config/age/key.txt" --passphrase "{{ .chezmoi.sourceDir }}/key.txt.age"
     chmod 600 "${HOME}/.config/age/key.txt"
