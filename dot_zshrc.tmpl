@@ -5,17 +5,8 @@ autoload -Uz compinit
 compinit
 
 {{ if eq .chezmoi.os "darwin" }}
-# darwin
-# Set 1Password as my SSH agent
-export SSH_AUTH_SOCK=~/Library/Group\ Containers/2BUA8C4S2C.com.1password/t/agent.sock
-
 # Set tailscale alias for app store version
 alias tailscale='/Applications/Tailscale.app/Contents/MacOS/Tailscale'
-{{ else if eq .chezmoi.os "linux" }}
-# linux
-# 1password SSH isn't loaded
-{{ else }}
-# other operating system
 {{ end }}
 
 #1Password shell plugins (gh, ) if op program is installed
