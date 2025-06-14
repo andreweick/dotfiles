@@ -1,20 +1,26 @@
 Host *
   StrictHostKeyChecking no
 
-Host palace-work
+Host palace-work.spouterinn.org
     HostName 10.200.10.47
     User maeick
     IdentityFile ~/.ssh/andy-anywhere
     ForwardAgent yes
 
-Host palace-dmz
+Host palace-dmz.spouterinn.org
     HostName 10.200.60.47
     User maeick
     IdentityFile ~/.ssh/andy-anywhere
     ForwardAgent yes
 
-Host jefferson
+Host jefferson.spouterinn.org
     HostName 10.200.10.80
     User maeick
+    IdentityFile ~/.ssh/andy-anywhere
+    ForwardAgent yes
+
+Host pudge.spouterinn.org
+    HostName 10.200.10.45 
+    User mae
     IdentityFile ~/.ssh/andy-anywhere
     ForwardAgent yes
