@@ -9,7 +9,7 @@ install.sh
 
 # Makeing a non-standard extension (.age-symmetric) so that chezmoi machinery doesn't try to decrypt it with the key material
 private_dot_config/age/secret_key.txt.age-symmetric
-private_dot_config/rclone/secrets.conf
+rclone/secrets.conf
 
 {{- $keyPath := joinPath .chezmoi.homeDir ".config" "age" "key.txt" -}}
 {{- if not (stat $keyPath) -}}
