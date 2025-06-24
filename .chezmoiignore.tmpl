@@ -3,6 +3,7 @@
 # README.md
 install.sh
 private_dot_config/age/secret_key.txt.age-symmetric
+private_dot_config/rclone/encrypted_private_secrets.conf.age
 
 {{- $keyPath := joinPath .chezmoi.homeDir ".config" "age" "key.txt" -}}
 {{- if not (stat $keyPath) -}}
