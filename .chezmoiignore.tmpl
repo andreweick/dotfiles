@@ -2,10 +2,10 @@
 
 # README.md
 install.sh
-key.txt.age
+private_dot_config/age/secret_key.txt.age-symmetric
 
 {{- $keyPath := joinPath .chezmoi.homeDir ".config" "age" "key.txt" -}}
 {{- if not (stat $keyPath) -}}
 # Age key not found, so ignore the encrypted rclone config
-dot_config/rclone/encrypted_private_rclone.conf.age
+private_dot_config/rclone/encrypted_private_rclone.conf.age
 {{- end -}}

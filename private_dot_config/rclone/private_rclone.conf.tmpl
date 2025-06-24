@@ -1,0 +1,32 @@
+# This is the base, non-sensitive part of your rclone.conf
+# It will be applied on all machines.
+
+[pudge]
+type = sftp
+host = pudge
+user = mae
+disable_hashcheck = true
+shell_type = unix
+
+
+[ty]
+type = sftp
+host = ty
+shell_type = unix
+md5sum_command = md5sum
+sha1sum_command = sha1sum
+
+{{/* --- Logic to include encrypted secrets --- */}}
+
+{{- $keyPath := joinPath .chezmoi.homeDir ".config" "age" "key.txt" -}}
+{{- if stat $keyPath }}
+
+{{- /*
+The age key exists, so we can safely decrypt and include the secrets.
+The `include` function reads a file from the source directory, and the `decrypt`
+function uses the age key to decrypt its contents. The result is then output here.
+*/}}
+
+{{ include "private_dot_config/rclone/encrypted_private_secrets.conf.age" | decrypt }}
+
+{{- end }}
