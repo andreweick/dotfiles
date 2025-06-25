@@ -25,8 +25,10 @@ sha1sum_command = sha1sum
 The age key exists, so we can safely decrypt and include the secrets.
 The `include` function reads a file from the source directory, and the `decrypt`
 function uses the age key to decrypt its contents. The result is then output here.
+
+Very tricky -- the naming convention -- the machinery of chezmoi prepends the encrypted_private_secrets.conf
 */}}
 
-{{ include "private_dot_config/rclone/encrypted_private_secrets.conf.age" | decrypt }}
+{{ include "private_dot_config/rclone/secrets.conf.age" | decrypt }}
 
 {{- end }}

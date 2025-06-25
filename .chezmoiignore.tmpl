@@ -1,18 +1,20 @@
-{{/* ~/.chezmoiignore.tmpl */}}
-
-# This file is wierd -- think of it like I ignore the files from the Source tree to the destination tree **BUT**
-# the file names are post decroated.  In the source tree, the secrets.conf file is *really* named encrypted_private_secrets.conf.age,
-# but the chezmoi machineray adds encrypted_private and appends .age to the file name
-
+# Ignore project files that shouldn't be in the destination directory.
 README.md
 install.sh
 
-# Makeing a non-standard extension (.age-symmetric) so that chezmoi machinery doesn't try to decrypt it with the key material
+# This is the symmetrically encrypted master key. The run_before_ script reads
+# it from the source directory, but it should never be placed in the destination.
 private_dot_config/age/secret_key.txt.age-symmetric
-.config/rclone/secrets.conf
 
+{{/*
+  Conditionally ignore files that require the age key for decryption.
+  This block is only active if the primary age key does NOT exist.
+*/}}
 {{- $keyPath := joinPath .chezmoi.homeDir ".config" "age" "key.txt" -}}
 {{- if not (stat $keyPath) -}}
-# Age key not found, so ignore the encrypted rclone config
-private_dot_config/rclone/encrypted_private_rclone.conf.age
+
+# The age key is not present, so ignore any files that need it.
+# This prevents decryption errors when running `chezmoi apply` without a password.
+encrypted_private_dot_config/rclone/secrets.conf.age
+
 {{- end -}}
