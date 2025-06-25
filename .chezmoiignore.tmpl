@@ -1,20 +1,33 @@
+{{/*
+  IMPORTANT: .chezmoiignore matches against a file's FINAL DESTINATION PATH,
+  not its source path in the repository.
+
+  For example, the source file:
+    `private_dot_config/age/secret_key.txt.age-symmetric`
+  has a destination (target) path of:
+    `.config/age/secret_key.txt.age-symmetric`
+  Therefore, the destination path is what must be used in this file.
+*/}}
+
 # Ignore project files that shouldn't be in the destination directory.
 README.md
 install.sh
 
-# This is the symmetrically encrypted master key. The run_before_ script reads
-# it from the source directory, but it should never be placed in the destination.
-private_dot_config/age/secret_key.txt.age-symmetric
+# This is the symmetrically encrypted master key.
+# We ignore its TARGET path, not its source path.
+.config/age/secret_key.txt.age-symmetric
 
 
 {{/* --- Conditional Ignores --- */}}
-{{/* This block only runs if the primary age key does NOT exist. */}}
-
+{{/*
+This block is only active if the final decrypted age key does NOT exist at its
+destination. We match against the TARGET path of the secrets file.
+*/}}
 {{- $keyPath := joinPath .chezmoi.homeDir ".config" "age" "key.txt" -}}
 {{- if not (stat $keyPath) -}}
 
-# The age key is not present, so we ignore the rclone secrets file.
-# This path is now confirmed to be correct by the `chezmoi managed` command.
-private_dot_config/rclone/encrypted_private_secrets.conf.age
+# The age key is not present, so ignore the rclone secrets file by its TARGET path.
+# This target path matches the error message you were seeing.
+.config/rclone/secrets.conf
 
 {{- end -}}
