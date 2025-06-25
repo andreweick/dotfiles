@@ -1,6 +1,11 @@
 Host *
   StrictHostKeyChecking no
 
+Host github.com
+    HostName github.com
+    User git
+    IdentityFile ~/.ssh/andy-anywhere
+
 Host palace-work.spouterinn.org
     HostName 10.200.10.47
     User maeick
