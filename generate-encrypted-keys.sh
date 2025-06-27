@@ -74,7 +74,17 @@ if confirm_overwrite "${CHEZMOI_KEYS_DIR}/master_key_ssh.age"; then
     if [ ! -s "${RECIPIENTS_FILE}" ]; then
         echo "⚠️ WARNING: No SSH public keys found. Skipping SSH-based encryption."
     else
-        echo "› Encrypting to all found SSH public keys..."
+        echo "› Encrypting to the following SSH public key(s):"
+        # Loop through the temp file and print fingerprints for verification
+        while IFS= read -r key_line || [ -n "$key_line" ]; do
+            # Ignore empty lines and comments
+            case "$key_line" in
+                ""|\#*) continue ;;
+            esac
+            # The ssh-keygen command prints the fingerprint of the public key
+            echo "${key_line}" | ssh-keygen -lf /dev/stdin | sed 's/^/     /'
+        done < "${RECIPIENTS_FILE}"
+
         age --encrypt --armor --recipients-file "${RECIPIENTS_FILE}" --output "${CHEZMOI_KEYS_DIR}/master_key_ssh.age" "${PLAINTEXT_KEY_PATH}"
         echo "✅ Successfully created '${CHEZMOI_KEYS_DIR}/master_key_ssh.age'"
     fi
