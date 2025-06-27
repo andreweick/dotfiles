@@ -3,8 +3,8 @@
 # FILENAME: setup_age_key.sh
 #
 # This script intelligently bootstraps the master age key. It first attempts
-# to decrypt using available SSH keys from the ssh-agent. If that fails, it
-# falls back to prompting for a master password.
+# to decrypt using available SSH keys (from an agent or local files). If that
+# fails, it falls back to prompting for a master password.
 #
 # Run this once on any new machine.
 
@@ -44,36 +44,47 @@ fi
 # 2. Ensure the destination directory exists.
 mkdir -p "$(dirname "${KEY_DESTINATION}")"
 
-# 3. Method 1: Attempt decryption with keys from the ssh-agent.
+# 3. Method 1: Attempt decryption with SSH keys.
 DECRYPTION_SUCCESSFUL=false
-# Check if an agent is running and has keys loaded.
-# `ssh-add -l` returns a non-zero exit code if the agent has no keys.
-if [ -n "$SSH_AUTH_SOCK" ] && [ -f "${ENCRYPTED_KEY_SSH}" ] && ssh-add -l >/dev/null 2>&1; then
-    echo "🔐 Step 1: SSH agent detected with keys loaded. Attempting decryption..."
+if [ -f "${ENCRYPTED_KEY_SSH}" ]; then
+    echo "🔐 Step 1: Attempting decryption with SSH keys..."
 
-    # Use ssh-add -L to get the public keys, which age can use as recipients
-    # to find the corresponding private key in the agent.
-    # We create a temporary file with all the public keys from the agent.
-    AGENT_KEYS_FILE=$(mktemp)
-    ssh-add -L > "${AGENT_KEYS_FILE}"
-
-    # We can now attempt decryption using the agent's keys.
-    # The `-i -` flag is not used; `age` does this automatically with ssh-agent.
-    # We test it first.
-    if age --decrypt --recipients-file "${AGENT_KEYS_FILE}" --output /dev/null "${ENCRYPTED_KEY_SSH}" >/dev/null 2>&1; then
-        # If the test succeeds, do the real decryption.
-        age --decrypt --recipients-file "${AGENT_KEYS_FILE}" --output "${KEY_DESTINATION}" "${ENCRYPTED_KEY_SSH}"
-        DECRYPTION_SUCCESSFUL=true
-        echo "   ✔ Success with a key from the SSH agent."
+    # --- Debugging: Show available and required keys ---
+    if [ -n "$SSH_AUTH_SOCK" ] && ssh-add -l >/dev/null 2>&1; then
+        echo "   › Fingerprints of keys available in ssh-agent:"
+        ssh-add -l | sed 's/^/     /' # Indent for readability
+    else
+        echo "   › No active SSH agent found with loaded keys."
     fi
-    rm -f "${AGENT_KEYS_FILE}"
+
+    echo "   › Fingerprints of recipients in the encrypted file:"
+    # The age header is plain text. We can awk for the SSH recipient lines
+    # and pipe each public key into ssh-keygen to get its fingerprint.
+    awk '/^-> ssh-/ { print $2, $3 }' "${ENCRYPTED_KEY_SSH}" | while IFS= read -r key_line; do
+        echo "${key_line}" | ssh-keygen -lf /dev/stdin | sed 's/^/     /'
+    done
+    if ! awk '/^-> ssh-/' "${ENCRYPTED_KEY_SSH}" | grep -q .; then
+        echo "     (No SSH recipients found in file)"
+    fi
+    # --- End Debugging ---
+
+    # Find all potential private keys and try to decrypt with them.
+    # `age` will automatically use the agent if the identity path matches a key in the agent.
+    for key_path in $(find "${HOME}/.ssh" -type f -not -name "*.pub"); do
+        # Silently try to decrypt with the current key
+        if age --decrypt --identity "${key_path}" --output "${KEY_DESTINATION}" "${ENCRYPTED_KEY_SSH}" >/dev/null 2>&1; then
+            DECRYPTION_SUCCESSFUL=true
+            echo "   ✔ Success: Decrypted using identity '${key_path}'"
+            break # Exit the loop on the first success
+        fi
+    done
 else
-    echo "ℹ️ Step 1: SSH agent not available or no keys loaded. Skipping."
+    echo "ℹ️ Step 1: SSH-encrypted key file not found. Skipping."
 fi
 
 # 4. Method 2: If SSH failed, fall back to passphrase.
 if [ "$DECRYPTION_SUCCESSFUL" = "false" ]; then
-    echo "🔐 Step 2: Falling back to master password..."
+    echo "🔐 Step 2: SSH decryption failed. Falling back to master password..."
     if [ -f "${ENCRYPTED_KEY_PASSPHRASE}" ]; then
         echo "   › Please enter your master password when prompted by 'age'."
 
