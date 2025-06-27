@@ -16,6 +16,8 @@ set -e
 PLAINTEXT_KEY_PATH="${HOME}/.config/age/key.txt"
 # Define the final destination for the generated keys inside the chezmoi source tree
 CHEZMOI_KEYS_DIR="$(chezmoi source-path)/private_dot_config/age"
+# Define locations to search for public keys
+SSH_DIR="${HOME}/.ssh"
 
 # --- Helper Function ---
 # Asks the user for confirmation before overwriting an existing file.
@@ -57,16 +59,22 @@ mkdir -p "${CHEZMOI_KEYS_DIR}"
 echo ""
 # 2. Encrypt with all available SSH keys.
 if confirm_overwrite "${CHEZMOI_KEYS_DIR}/master_key_ssh.age"; then
-    echo "🔎 Searching for SSH public keys in ~/.ssh..."
+    echo "🔎 Searching for SSH public keys..."
     RECIPIENTS_FILE=$(mktemp)
-    # Find all .pub files and concatenate their contents into the temp file
-    find "${HOME}/.ssh" -type f -name "*.pub" -exec cat {} + > "${RECIPIENTS_FILE}"
+
+    # Gather keys from all common locations
+    find "${SSH_DIR}" -type f -name "*.pub" -exec cat {} + >> "${RECIPIENTS_FILE}" 2>/dev/null || true
+    [ -f "${SSH_DIR}/authorized_keys" ] && cat "${SSH_DIR}/authorized_keys" >> "${RECIPIENTS_FILE}"
+    [ -f "${SSH_DIR}/ignition" ] && cat "${SSH_DIR}/ignition" >> "${RECIPIENTS_FILE}"
+    [ -d "${SSH_DIR}/authorized_keys.d" ] && find "${SSH_DIR}/authorized_keys.d" -type f -exec cat {} + >> "${RECIPIENTS_FILE}" 2>/dev/null || true
+
+    # De-duplicate the list of keys
+    sort -u -o "${RECIPIENTS_FILE}" "${RECIPIENTS_FILE}"
 
     if [ ! -s "${RECIPIENTS_FILE}" ]; then
-        echo "⚠️ WARNING: No SSH public keys found in ~/.ssh. Skipping SSH-based encryption."
+        echo "⚠️ WARNING: No SSH public keys found. Skipping SSH-based encryption."
     else
         echo "› Encrypting to all found SSH public keys..."
-        # Added the --armor flag here to ensure ASCII output
         age --encrypt --armor --recipients-file "${RECIPIENTS_FILE}" --output "${CHEZMOI_KEYS_DIR}/master_key_ssh.age" "${PLAINTEXT_KEY_PATH}"
         echo "✅ Successfully created '${CHEZMOI_KEYS_DIR}/master_key_ssh.age'"
     fi
@@ -81,7 +89,7 @@ if confirm_overwrite "${CHEZMOI_KEYS_DIR}/master_key_passphrase.age"; then
     echo "› Preparing to encrypt with a master password."
     echo "  The 'age' command will now prompt you to enter and confirm the password."
 
-    # This command already uses --armor, so it's correct.
+    # Let the `age` command handle its own interactive password prompt directly.
     age --passphrase --armor --output "${CHEZMOI_KEYS_DIR}/master_key_passphrase.age" "${PLAINTEXT_KEY_PATH}"
 
     echo "✅ Successfully created '${CHEZMOI_KEYS_DIR}/master_key_passphrase.age'"
