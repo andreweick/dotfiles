@@ -60,36 +60,41 @@ echo ""
 # 2. Encrypt with all available SSH keys.
 if confirm_overwrite "${CHEZMOI_KEYS_DIR}/master_key_ssh.age"; then
     echo "🔎 Searching for SSH public keys..."
-    RECIPIENTS_FILE=$(mktemp)
 
-    # Gather keys from all common locations
-    find "${SSH_DIR}" -type f -name "*.pub" -exec cat {} + >> "${RECIPIENTS_FILE}" 2>/dev/null || true
-    [ -f "${SSH_DIR}/authorized_keys" ] && cat "${SSH_DIR}/authorized_keys" >> "${RECIPIENTS_FILE}"
-    [ -f "${SSH_DIR}/ignition" ] && cat "${SSH_DIR}/ignition" >> "${RECIPIENTS_FILE}"
-    [ -d "${SSH_DIR}/authorized_keys.d" ] && find "${SSH_DIR}/authorized_keys.d" -type f -exec cat {} + >> "${RECIPIENTS_FILE}" 2>/dev/null || true
+    # Create an array of "-r <key>" arguments for the age command
+    age_args=""
+    all_keys=""
 
-    # De-duplicate the list of keys
-    sort -u -o "${RECIPIENTS_FILE}" "${RECIPIENTS_FILE}"
+    # Gather keys from all common locations into a temporary file
+    TMP_KEYS_FILE=$(mktemp)
+    find "${SSH_DIR}" -type f -name "*.pub" -exec cat {} + >> "${TMP_KEYS_FILE}" 2>/dev/null || true
+    [ -f "${SSH_DIR}/authorized_keys" ] && cat "${SSH_DIR}/authorized_keys" >> "${TMP_KEYS_FILE}"
+    [ -f "${SSH_DIR}/ignition" ] && cat "${SSH_DIR}/ignition" >> "${TMP_KEYS_FILE}"
+    [ -d "${SSH_DIR}/authorized_keys.d" ] && find "${SSH_DIR}/authorized_keys.d" -type f -exec cat {} + >> "${TMP_KEYS_FILE}" 2>/dev/null || true
 
-    if [ ! -s "${RECIPIENTS_FILE}" ]; then
-        echo "⚠️ WARNING: No SSH public keys found. Skipping SSH-based encryption."
+    # Filter out unsupported ecdsa keys and de-duplicate
+    # This is the crucial fix to prevent the "unknown recipient" error
+    all_keys=$(grep -v "ecdsa-sha2-nistp256" "${TMP_KEYS_FILE}" | sort -u)
+    rm -f "${TMP_KEYS_FILE}"
+
+    if [ -z "${all_keys}" ]; then
+        echo "⚠️ WARNING: No SUPPORTED SSH public keys found. Skipping SSH-based encryption."
     else
-        echo "› Encrypting to the following SSH public key(s):"
-        # Loop through the temp file and print fingerprints for verification
-        while IFS= read -r key_line || [ -n "$key_line" ]; do
-            # Ignore empty lines and comments
-            case "$key_line" in
-                ""|\#*) continue ;;
-            esac
-            # The ssh-keygen command prints the fingerprint of the public key
+        echo "› Preparing to encrypt to the following SUPPORTED SSH public key(s):"
+        # Build the arguments and print fingerprints
+        while IFS= read -r key_line; do
+            case "$key_line" in ""|\#*) continue ;; esac
             echo "${key_line}" | ssh-keygen -lf /dev/stdin | sed 's/^/     /'
-        done < "${RECIPIENTS_FILE}"
+            # Add the key as a recipient argument
+            age_args="${age_args} -r '${key_line}'"
+        done <<EOF
+${all_keys}
+EOF
 
-        age --encrypt --armor --recipients-file "${RECIPIENTS_FILE}" --output "${CHEZMOI_KEYS_DIR}/master_key_ssh.age" "${PLAINTEXT_KEY_PATH}"
+        # Use eval to correctly handle the quoted arguments. It's safe here as we control the input.
+        eval "age --encrypt --armor ${age_args} --output '${CHEZMOI_KEYS_DIR}/master_key_ssh.age' '${PLAINTEXT_KEY_PATH}'"
         echo "✅ Successfully created '${CHEZMOI_KEYS_DIR}/master_key_ssh.age'"
     fi
-    # Clean up the temporary recipients file
-    rm -f "${RECIPIENTS_FILE}"
 fi
 
 
