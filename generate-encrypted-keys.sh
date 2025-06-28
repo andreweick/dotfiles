@@ -3,7 +3,7 @@
 # FILENAME: generate_encrypted_keys.sh
 #
 # This helper script encrypts your master age private key in two ways:
-#   1. Encrypted to ALL SSH public keys found in ~/.ssh.
+#   1. Encrypted to ALL SUPPORTED SSH public keys found in ~/.ssh.
 #   2. Encrypted with a symmetric master password.
 #
 # It assumes the unencrypted key is located at ~/.config/age/key.txt.
@@ -61,40 +61,36 @@ echo ""
 if confirm_overwrite "${CHEZMOI_KEYS_DIR}/master_key_ssh.age"; then
     echo "🔎 Searching for SSH public keys..."
 
-    # Create an array of "-r <key>" arguments for the age command
-    age_args=""
-    all_keys=""
+    # Create a temporary file to hold all potential public keys
+    ALL_KEYS_TMP=$(mktemp)
+    # Create a final, clean recipients file
+    RECIPIENTS_FILE=$(mktemp)
 
-    # Gather keys from all common locations into a temporary file
-    TMP_KEYS_FILE=$(mktemp)
-    find "${SSH_DIR}" -type f -name "*.pub" -exec cat {} + >> "${TMP_KEYS_FILE}" 2>/dev/null || true
-    [ -f "${SSH_DIR}/authorized_keys" ] && cat "${SSH_DIR}/authorized_keys" >> "${TMP_KEYS_FILE}"
-    [ -f "${SSH_DIR}/ignition" ] && cat "${SSH_DIR}/ignition" >> "${TMP_KEYS_FILE}"
-    [ -d "${SSH_DIR}/authorized_keys.d" ] && find "${SSH_DIR}/authorized_keys.d" -type f -exec cat {} + >> "${TMP_KEYS_FILE}" 2>/dev/null || true
+    # Gather keys from all common locations into the temporary file
+    find "${SSH_DIR}" -type f -name "*.pub" -exec cat {} + >> "${ALL_KEYS_TMP}" 2>/dev/null || true
+    [ -f "${SSH_DIR}/authorized_keys" ] && cat "${SSH_DIR}/authorized_keys" >> "${ALL_KEYS_TMP}"
+    [ -f "${SSH_DIR}/ignition" ] && cat "${SSH_DIR}/ignition" >> "${ALL_KEYS_TMP}"
+    [ -d "${SSH_DIR}/authorized_keys.d" ] && find "${SSH_DIR}/authorized_keys.d" -type f -exec cat {} + >> "${ALL_KEYS_TMP}" 2>/dev/null || true
 
-    # Filter out unsupported ecdsa keys and de-duplicate
-    # This is the crucial fix to prevent the "unknown recipient" error
-    all_keys=$(grep -v "ecdsa-sha2-nistp256" "${TMP_KEYS_FILE}" | sort -u)
-    rm -f "${TMP_KEYS_FILE}"
+    # Filter out unsupported ecdsa keys, comments, and empty lines, then de-duplicate
+    grep -v "ecdsa-sha2-nistp256" "${ALL_KEYS_TMP}" | grep -v "^\s*#" | grep -v "^\s*$" | sort -u > "${RECIPIENTS_FILE}"
+    rm -f "${ALL_KEYS_TMP}"
 
-    if [ -z "${all_keys}" ]; then
+    if [ ! -s "${RECIPIENTS_FILE}" ]; then
         echo "⚠️ WARNING: No SUPPORTED SSH public keys found. Skipping SSH-based encryption."
     else
         echo "› Preparing to encrypt to the following SUPPORTED SSH public key(s):"
-        # Build the arguments and print fingerprints
+        # Print fingerprints for verification
         while IFS= read -r key_line; do
-            case "$key_line" in ""|\#*) continue ;; esac
             echo "${key_line}" | ssh-keygen -lf /dev/stdin | sed 's/^/     /'
-            # Add the key as a recipient argument
-            age_args="${age_args} -r '${key_line}'"
-        done <<EOF
-${all_keys}
-EOF
+        done < "${RECIPIENTS_FILE}"
 
-        # Use eval to correctly handle the quoted arguments. It's safe here as we control the input.
-        eval "age --encrypt --armor ${age_args} --output '${CHEZMOI_KEYS_DIR}/master_key_ssh.age' '${PLAINTEXT_KEY_PATH}'"
+        # Use the cleaned recipients file to encrypt. This is much more reliable.
+        age --encrypt --armor --recipients-file "${RECIPIENTS_FILE}" --output "${CHEZMOI_KEYS_DIR}/master_key_ssh.age" "${PLAINTEXT_KEY_PATH}"
         echo "✅ Successfully created '${CHEZMOI_KEYS_DIR}/master_key_ssh.age'"
     fi
+    # Clean up the final recipients file
+    rm -f "${RECIPIENTS_FILE}"
 fi
 
 
