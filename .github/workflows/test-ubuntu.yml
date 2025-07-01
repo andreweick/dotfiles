@@ -1,0 +1,19 @@
+name: Test dotfiles installation
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  test-installation:
+    name: Test installation script
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+      - name of: Make install script executable
+        run: chmod --execute install.sh
+      - name: Run install script
+        run: ./install.sh
