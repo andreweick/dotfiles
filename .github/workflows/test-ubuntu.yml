@@ -13,7 +13,7 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
-      - name of: Make install script executable
+      - name: Make install script executable
         run: chmod --execute install.sh
       - name: Run install script
         run: ./install.sh
