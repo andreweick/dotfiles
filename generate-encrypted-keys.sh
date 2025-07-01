@@ -61,12 +61,11 @@ echo ""
 if confirm_overwrite "${CHEZMOI_KEYS_DIR}/master_key_ssh.age"; then
     echo "🔎 Searching for SSH public keys..."
 
-    # Create a temporary file to hold all potential public keys
-    ALL_KEYS_TMP=$(mktemp)
-    # Create a final, clean recipients file
+    # Create a temporary file to hold the clean list of recipients
     RECIPIENTS_FILE=$(mktemp)
 
-    # Gather keys from all common locations into the temporary file
+    # Gather keys from all common locations into a temporary holding file
+    ALL_KEYS_TMP=$(mktemp)
     find "${SSH_DIR}" -type f -name "*.pub" -exec cat {} + >> "${ALL_KEYS_TMP}" 2>/dev/null || true
     [ -f "${SSH_DIR}/authorized_keys" ] && cat "${SSH_DIR}/authorized_keys" >> "${ALL_KEYS_TMP}"
     [ -f "${SSH_DIR}/ignition" ] && cat "${SSH_DIR}/ignition" >> "${ALL_KEYS_TMP}"
@@ -85,7 +84,7 @@ if confirm_overwrite "${CHEZMOI_KEYS_DIR}/master_key_ssh.age"; then
             echo "${key_line}" | ssh-keygen -lf /dev/stdin | sed 's/^/     /'
         done < "${RECIPIENTS_FILE}"
 
-        # Use the cleaned recipients file to encrypt. This is much more reliable.
+        # Use the cleaned recipients file to encrypt. This is the most reliable method.
         age --encrypt --armor --recipients-file "${RECIPIENTS_FILE}" --output "${CHEZMOI_KEYS_DIR}/master_key_ssh.age" "${PLAINTEXT_KEY_PATH}"
         echo "✅ Successfully created '${CHEZMOI_KEYS_DIR}/master_key_ssh.age'"
     fi

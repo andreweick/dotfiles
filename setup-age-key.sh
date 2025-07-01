@@ -3,8 +3,8 @@
 # FILENAME: setup_age_key.sh
 #
 # This script intelligently bootstraps the master age key. It first attempts
-# to decrypt using available SSH keys (from an agent or local files). If that
-# fails, it falls back to prompting for a master password.
+# to decrypt using available SSH keys. If that fails, it falls back to
+# prompting for a master password.
 #
 # Run this once on any new machine.
 
@@ -43,33 +43,16 @@ fi
 
 # 2. Ensure the destination directory exists.
 mkdir -p "$(dirname "${KEY_DESTINATION}")"
+chmod 600 ${HOME}/.config
+
+# --- Decryption Attempts ---
+DECRYPTION_SUCCESSFUL=false
 
 # 3. Method 1: Attempt decryption with SSH keys.
-DECRYPTION_SUCCESSFUL=false
 if [ -f "${ENCRYPTED_KEY_SSH}" ]; then
-    echo "🔐 Step 1: Attempting decryption with SSH keys..."
-
-    # --- Debugging: Show available and required keys ---
-    if [ -n "$SSH_AUTH_SOCK" ] && ssh-add -l >/dev/null 2>&1; then
-        echo "   › Fingerprints of keys available in ssh-agent:"
-        ssh-add -l | sed 's/^/     /' # Indent for readability
-    else
-        echo "   › No active SSH agent found with loaded keys."
-    fi
-
-    echo "   › Fingerprints of recipients in the encrypted file:"
-    # The age header is plain text. We can awk for the SSH recipient lines
-    # and pipe each public key into ssh-keygen to get its fingerprint.
-    awk '/^-> ssh-/ { print $2, $3 }' "${ENCRYPTED_KEY_SSH}" | while IFS= read -r key_line; do
-        echo "${key_line}" | ssh-keygen -lf /dev/stdin | sed 's/^/     /'
-    done
-    if ! awk '/^-> ssh-/' "${ENCRYPTED_KEY_SSH}" | grep -q .; then
-        echo "     (No SSH recipients found in file)"
-    fi
-    # --- End Debugging ---
-
+    echo "🔐 Step 1: Attempting decryption with available SSH keys..."
     # Find all potential private keys and try to decrypt with them.
-    # `age` will automatically use the agent if the identity path matches a key in the agent.
+    # `age` will automatically use a forwarded agent if the identity path matches a key in the agent.
     for key_path in $(find "${HOME}/.ssh" -type f -not -name "*.pub"); do
         # Silently try to decrypt with the current key
         if age --decrypt --identity "${key_path}" --output "${KEY_DESTINATION}" "${ENCRYPTED_KEY_SSH}" >/dev/null 2>&1; then
@@ -78,16 +61,14 @@ if [ -f "${ENCRYPTED_KEY_SSH}" ]; then
             break # Exit the loop on the first success
         fi
     done
-else
-    echo "ℹ️ Step 1: SSH-encrypted key file not found. Skipping."
 fi
 
 # 4. Method 2: If SSH failed, fall back to passphrase.
 if [ "$DECRYPTION_SUCCESSFUL" = "false" ]; then
-    echo "🔐 Step 2: SSH decryption failed. Falling back to master password..."
+    echo "🔐 Step 2: SSH decryption failed or was skipped. Falling back to master password..."
     if [ -f "${ENCRYPTED_KEY_PASSPHRASE}" ]; then
         echo "   › Please enter your master password when prompted by 'age'."
-
+        # Let `age` handle the interactive prompt for security. It will ask once.
         if age --decrypt --output "${KEY_DESTINATION}" "${ENCRYPTED_KEY_PASSPHRASE}"; then
             DECRYPTION_SUCCESSFUL=true
             echo "   ✔ Success with master password."
@@ -99,8 +80,7 @@ fi
 
 # 5. Check if any method succeeded and handle errors.
 if [ "$DECRYPTION_SUCCESSFUL" = "false" ]; then
-    echo "❌ ERROR: All decryption methods failed."
-    echo "   Could not decrypt the master key using any available SSH keys or the provided password."
+    echo "❌ ERROR: All bootstrap methods failed."
     rm -f "${KEY_DESTINATION}" >/dev/null 2>&1
     exit 1
 fi
