@@ -1,6 +1,13 @@
 # This is the base, non-sensitive part of your rclone.conf
 # It will be applied on all machines.
 
+[jefferson]
+type = sftp
+host = jefferson
+user = root
+disable_hashcheck = true
+shell_type = unix
+
 [pudge]
 type = sftp
 host = pudge
