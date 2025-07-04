@@ -6,7 +6,7 @@
 # Set the time period in seconds. Default is 7 days.
 readonly CHECK_INTERVAL_SECONDS=$((7 * 24 * 60 * 60))
 # Location for the timestamp file.
-readonly MARKER_FILE="$HOME/.config/brewfile/brew_last_run"
+readonly MARKER_FILE="$HOME/.config/brewfile/brew_last_run.txt"
 # Location of the brewfile itself.
 readonly BREWFILE_PATH="$HOME/.config/brewfile/brewfile.txt"
 
@@ -71,7 +71,7 @@ if [ "$SHOULD_RUN" = true ]; then
 
     # --- CORE INTERACTIVE SCRIPT ---
     echo "📦 Syncing packages from brewfile.txt..."
-    brew bundle install --file "$BREWFILE_PATH" --no-lock --quiet
+    brew bundle install --file "$BREWFILE_PATH" --quiet
 
     echo "🔎 Checking for packages installed but not in your brewfile.txt..."
     CHECK_OUTPUT=$(brew bundle check --file "$BREWFILE_PATH" --verbose || true)
