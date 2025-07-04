@@ -19,6 +19,8 @@ setup-age-key.sh
 # We ignore its TARGET path, not its source path.
 .config/age/secret_key.txt.age-symmetric
 
+# This is the timestamp file for the brewfile when it was last run (so I don't over run it).
+.config/brewfile/brew_last_run.txt
 
 {{/* --- Conditional Ignores --- */}}
 {{/*
@@ -33,3 +35,33 @@ destination. We match against the TARGET path of the secrets file.
 .config/rclone/secrets.conf
 
 {{- end -}}
+
+
+#
+# How .chezmoiignore Works
+#
+# This file tells chezmoi which files or directories to ignore. It prevents
+# chezmoi from prompting you to add them to your managed dotfiles.
+#
+# The patterns in this file are matched against a file's TARGET PATH (its
+# final destination in your home directory, relative to ~).
+#
+# --- Pattern Matching Rules & Examples ---
+#
+# 1. To ignore a specific file at an exact, nested path (MOST EXPLICIT & RECOMMENDED):
+#    # This ignores `~/.config/brewfile/brew_last_run` but not `~/brew_last_run`.
+#    .config/brewfile/brew_last_run
+#
+# 2. To ignore ANY file with a specific name, no matter how deeply nested (POWERFUL):
+#    # The `**` is a "globstar" that matches any number of directories.
+#    # This ignores `foo/some_cache.db`, `bar/baz/some_cache.db`, etc.
+#    **/some_cache.db
+#
+# 3. To ignore an entire directory and all of its contents:
+#    # This ignores the `~/.npm` directory and everything inside it.
+#    .npm/
+#
+# 4. To ignore a file ONLY at the root of your home directory:
+#    # This ignores `~/a_root_file`, but NOT `~/.config/a_root_file`.
+#    a_root_file
+#
