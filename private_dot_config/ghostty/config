@@ -15,5 +15,8 @@ font-size = 16
 # font-size = 35
 
 
+# Binds Shift+Enter to insert a newline character, preventing premature submission in applications that interpret Enter as a command.
+
 keybind = global:ctrl+grave_accent=toggle_quick_terminal
+keybind = shift+enter=text:\n
 window-inherit-working-directory = true
