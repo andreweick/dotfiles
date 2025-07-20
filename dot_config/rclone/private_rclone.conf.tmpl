@@ -34,6 +34,6 @@ The path in the 'include' function now EXACTLY matches the filename
 in your source directory.
 */}}
 
-{{ include "private_dot_config/rclone/encrypted_private_secrets.conf.age" | decrypt }}
+{{ include "dot_config/rclone/encrypted_private_secrets.conf.age" | decrypt }}
 
 {{- end }}
