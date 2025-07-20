@@ -10,6 +10,30 @@ If the private key material isn't available (at `~/.config/age/key.txt`) chezmoi
 
 ## 🚀 Quick Start & Daily Usage
 
+### Bootstrapping a New System
+
+#### macOS Prerequisites
+
+1. **Install Homebrew** (if not already installed):
+```sh
+/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+```
+
+2. **Install required tools**:
+```sh
+brew install chezmoi age
+```
+
+#### Linux Prerequisites
+
+```sh
+# Install age (example for Ubuntu/Debian)
+sudo apt install age
+
+# Install chezmoi
+sh -c "$(curl -fsLS get.chezmoi.io)"
+```
+
 ### Installation on a New Machine
 
 Run this command to install `chezmoi` and apply the dotfiles from this repository.
@@ -31,7 +55,7 @@ chezmoi init [github.com/andreweick/dotfiles](https://github.com/andreweick/dotf
 After installing, your secrets will still be encrypted. Run this script to decrypt them. It will try to use your SSH key first, then fall back to prompting for your master password.
 
 ```sh
-"$(chezmoi source-path)/setup_age_key.sh"
+"$(chezmoi source-path)/setup-age-key.sh"
 ```
 
 > **Note:** The master password for fallback decryption is stored in 1Password at:
@@ -99,6 +123,34 @@ Files that contain a mix of public and private data are split into two parts:
 2.  **An Encrypted Secrets File (`.../encrypted_private_secrets.conf.age`):** A small, fully encrypted file containing *only* the sensitive parts.
 
 The base template uses `chezmoi`'s template functions to check if the `key.txt` exists. If it does, it decrypts the secrets file in memory and appends its contents to the final generated file.
+
+-----
+
+## 🕰️ Using Atuin for Shell History
+
+[Atuin](https://atuin.sh/) provides encrypted, searchable, and synced shell history across all your machines.
+
+### Initial Setup
+
+**Note:** On first run after bootstrapping a new system, you'll need to log in to Atuin and sync your history:
+
+```sh
+# Log in to Atuin (you'll need your username and password/key)
+atuin login
+
+# Force an initial sync to download your history from other machines
+atuin sync --force
+```
+
+### Daily Usage
+
+Atuin automatically syncs your history in the background. You can search your history by pressing `Ctrl+R` in your shell.
+
+To manually sync at any time:
+
+```sh
+atuin sync
+```
 
 -----
 

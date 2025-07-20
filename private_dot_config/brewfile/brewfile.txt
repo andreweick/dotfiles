@@ -1,0 +1,10 @@
+brew "age"
+brew "atuin", restart_service: :changed
+brew "chezmoi"
+brew "cosign"
+brew "flyctl"
+brew "gh"
+brew "hugo"
+brew "rclone"
+brew "starship"
+brew "node"
