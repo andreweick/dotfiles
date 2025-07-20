@@ -1,43 +1,72 @@
+# -----------------------------------------------------------------------------
+# 🔐 SSH Configuration Master File
+# -----------------------------------------------------------------------------
+#
+# This configuration uses a structured, modular layout to manage multiple
+# YubiKey-based and fallback SSH identities across work, personal, and secure
+# environments. It leverages OpenSSH's `Include` directive to split settings
+# into clearly scoped files for readability and easier automation.
+#
+# -----------------------------------------------------------------------------
+# 🗂️ Directory Layout: ~/.ssh/
+#
+# All keys and configs are organized into subfolders:
+#
+# ~/.ssh/
+# ├── config                         ← This master file
+# ├── config.d/                      ← Modular per-host configs
+# │   ├── github.conf
+# │   ├── spouterinn.conf
+# │   └── fallback.conf
+# ├── known_hosts
+# ├── work/
+# │   ├── andy-anywhere              ← Legacy fallback key (ED25519)
+# │   └── andy-anywhere.pub
+# ├── yubikey/
+# │   ├── red_yubi_1/
+# │   │   ├── id_red_yubi_1_sk             ← Primary non-resident key
+# │   │   ├── id_red_yubi_1_sk.pub
+# │   │   └── id_red_yubi_1_sk_resident    ← Primary resident fallback
+# │   └── red_yubi_2/
+# │       ├── id_red_yubi_2_sk             ← Backup non-resident key
+# │       ├── id_red_yubi_2_sk.pub
+# │       └── id_red_yubi_2_sk_resident    ← Backup resident fallback
+#
+# -----------------------------------------------------------------------------
+# 🔐 Permissions Required:
+#
+# Directories: 700
+#   chmod 700 ~/.ssh ~/.ssh/config.d ~/.ssh/work ~/.ssh/yubikey ~/.ssh/yubikey/*
+#
+# Private keys: 600
+#   chmod 600 ~/.ssh/**/*.sk ~/.ssh/**/*.pub ~/.ssh/work/andy-anywhere
+#
+# -----------------------------------------------------------------------------
+# 🧠 Fallback Behavior:
+#
+# The YubiKey loader in ~/.zshrc checks which key is available at login:
+#   - red_yubi_1 → preferred key
+#   - red_yubi_2 → alternate backup key
+#   - andy-anywhere → fallback if no hardware key is available
+#
+# These keys are added to `ssh-agent` based on detection logic.
+#
+# -----------------------------------------------------------------------------
+# 📁 Host Configuration: Modular Includes
+#
+# The following line pulls in host-specific settings from ~/.ssh/config.d/*.conf.
+# Each file contains IdentityFile and connection options for one environment.
+# -----------------------------------------------------------------------------
+
+Include ~/.ssh/config.d/*.conf
+
+# -----------------------------------------------------------------------------
+# 🔧 Global Defaults
+# -----------------------------------------------------------------------------
+# These apply to all SSH connections, unless overridden by a specific host block.
+# -----------------------------------------------------------------------------
+
 Host *
-  StrictHostKeyChecking no
-
-Host github.com
-    HostName github.com
-    User git
-    IdentityFile ~/.ssh/andy-anywhere
-
-Host palace-work.spouterinn.org
-    HostName 10.200.10.47
-    User maeick
-    IdentityFile ~/.ssh/andy-anywhere
-    ForwardAgent yes
-
-Host vipers.spouterinn.org
-    HostName 10.200.10.43
-    User maeick
-    IdentityFile ~/.ssh/andy-anywhere
-    ForwardAgent yes
-
-Host palace-dmz.spouterinn.org
-    HostName 10.200.60.47
-    User maeick
-    IdentityFile ~/.ssh/andy-anywhere
-    ForwardAgent yes
-
-Host jefferson.spouterinn.org
-    HostName 10.200.10.80
-    User maeick
-    IdentityFile ~/.ssh/andy-anywhere
-    ForwardAgent yes
-
-Host pudge.spouterinn.org
-    HostName 10.200.10.45 
-    User mae
-    IdentityFile ~/.ssh/andy-anywhere
-    ForwardAgent yes
-
-Host photos.organmorgan.com
-    HostName 10.200.60.48
-    User maeick
-    IdentityFile ~/.ssh/andy-anywhere
-    ForwardAgent yes
+  IdentitiesOnly yes
+  ForwardAgent no
+  StrictHostKeyChecking ask

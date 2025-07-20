@@ -34,3 +34,84 @@ if command -v atuin &> /dev/null
 then
   eval "$(atuin init zsh)"
 fi
+
+# -----------------------------------------------------------------------------
+# 🔐 SSH Agent Auto-Key Loader (YubiKey-Aware)
+# -----------------------------------------------------------------------------
+#
+# This logic automatically starts `ssh-agent` and adds your preferred SSH key:
+#
+# 🔹 Priority:
+#   1. If `ykman` is available:
+#      - Detect which YubiKey is inserted by serial number
+#      - Add the corresponding key (red_yubi_1 or red_yubi_2) to ssh-agent
+#   2. If `ykman` is NOT available:
+#      - Assume red_yubi_1 is inserted and try to add its key
+#   3. If no YubiKey is found or fails to load:
+#      - Fallback to a local key (`~/.ssh/andy-anywhere`)
+#
+# 🔹 Goals:
+#   - Avoid manually editing ~/.zshrc when switching keys
+#   - Only add the appropriate key once (avoids clutter and slowdown)
+#   - Cleanly fall back when no YubiKey is present
+#
+# Requirements:
+#   - `ykman` installed and in your $PATH for key detection
+#   - Serial numbers updated below to match your actual YubiKeys
+# -----------------------------------------------------------------------------
+
+# Start ssh-agent if not already running
+if ! pgrep -u "$USER" ssh-agent > /dev/null; then
+  eval "$(ssh-agent -s)"
+fi
+
+# Key paths
+YUBI_1_KEY="$HOME/.ssh/id_red_yubi_1_sk"
+YUBI_2_KEY="$HOME/.ssh/id_red_yubi_2_sk"
+FALLBACK_KEY="$HOME/.ssh/andy-anywhere"
+
+# YubiKey serials (update these with your actual devices using `ykman list --serials`)
+YUBI_1_SERIAL="12345678"  # 🔴 red_yubi_1
+YUBI_2_SERIAL="87654321"  # 🔴 red_yubi_2
+
+# Check if a key is already loaded into the agent
+is_key_added() {
+  ssh-add -l 2>/dev/null | grep -q "$(basename "$1")"
+}
+
+# Attempt to add a key only if it exists and isn't already loaded
+maybe_add_key() {
+  local key="$1"
+  if [ -f "$key" ] && ! is_key_added "$key"; then
+    ssh-add "$key" 2>/dev/null && echo "✅ Added $(basename "$key")"
+  fi
+}
+
+# Try to detect YubiKey via ykman (preferred method)
+if command -v ykman &>/dev/null; then
+  serial=$(ykman list --serials 2>/dev/null | head -n1)
+
+  case "$serial" in
+    "$YUBI_1_SERIAL")
+      echo "🔐 Detected red_yubi_1 (serial: $serial)"
+      maybe_add_key "$YUBI_1_KEY"
+      ;;
+    "$YUBI_2_SERIAL")
+      echo "🔐 Detected red_yubi_2 (serial: $serial)"
+      maybe_add_key "$YUBI_2_KEY"
+      ;;
+    *)
+      echo "⚠️  Unknown YubiKey detected (serial: $serial) — assuming red_yubi_1"
+      maybe_add_key "$YUBI_1_KEY"
+      ;;
+  esac
+else
+  echo "🔎 ykman not available — assuming red_yubi_1"
+  maybe_add_key "$YUBI_1_KEY"
+fi
+
+# Fallback if no hardware key is usable
+if ! ssh-add -l 2>/dev/null | grep -q "cardno:" && ! is_key_added "$FALLBACK_KEY"; then
+  echo "💡 No YubiKey key available — adding fallback key"
+  maybe_add_key "$FALLBACK_KEY"
+fi
