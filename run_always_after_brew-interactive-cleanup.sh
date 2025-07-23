@@ -9,6 +9,10 @@ readonly CHECK_INTERVAL_SECONDS=$((7 * 24 * 60 * 60))
 readonly MARKER_FILE="$HOME/.config/brewfile/brew_last_run.txt"
 # Location of the brewfile itself.
 readonly BREWFILE_PATH="$HOME/.config/brewfile/brewfile.txt"
+# Auto-removal mode: "prompt" (current behavior) or "auto_prompt" (auto-remove with countdown)
+readonly AUTO_REMOVE_MODE="auto_prompt"
+# Countdown timeout in seconds for auto-removal
+readonly AUTO_REMOVE_TIMEOUT=10
 
 # --- INITIAL CHECKS ---
 if ! command -v brew &> /dev/null; then
@@ -74,8 +78,10 @@ if [ "$SHOULD_RUN" = true ]; then
     brew bundle install --file "$BREWFILE_PATH" --quiet
 
     echo "🔎 Checking for packages installed but not in your brewfile.txt..."
-    CHECK_OUTPUT=$(brew bundle check --file "$BREWFILE_PATH" --verbose || true)
-    EXTRANEOUS_PACKAGES=$(echo "$CHECK_OUTPUT" | sed -n '/not listed in the Brewfile:/,$p' | sed '1d')
+    # Use brew bundle cleanup (without --force) to detect what would be removed
+    CLEANUP_OUTPUT=$(brew bundle cleanup --file "$BREWFILE_PATH" 2>&1 || true)
+    # Extract package names - they appear after "formulae:" line and before "Run `brew bundle cleanup --force`"
+    EXTRANEOUS_PACKAGES=$(echo "$CLEANUP_OUTPUT" | sed -n '/^Would uninstall formulae:/,/^Run `brew bundle cleanup --force`/p' | grep -v "^Would uninstall formulae:" | grep -v "^Run \`brew bundle cleanup --force\`" | grep -v "^$")
 
     if [ -n "$EXTRANEOUS_PACKAGES" ]; then
         echo
@@ -85,32 +91,107 @@ if [ "$SHOULD_RUN" = true ]; then
         echo "--------------------------------------------------"
 
         if [ -t 0 ]; then # Interactive check
-            echo
-            echo "Choose an action:"
-            echo "  [Y]es, remove these packages."
-            echo "  [S]kip cleanup, but reset the timer."
-            echo "  [A]bort 'chezmoi apply'. Timer will NOT be reset."
-            read -p "Your choice? (Y/S/A) " -n 1 -r REPLY
-            echo
-            REPLY_LOWER=$(echo "$REPLY" | tr '[:upper:]' '[:lower:]')
-            case "$REPLY_LOWER" in
-              y)
-                echo "🗑️  User approved. Removing unlisted packages..."
-                brew bundle cleanup --file "$BREWFILE_PATH" --force --quiet
-                echo "✅ Cleanup complete."
-                ;;
-              s)
-                echo "ℹ️  Skipping cleanup as requested."
-                ;;
-              a)
-                echo "🛑 Aborting entire 'chezmoi apply' process."
-                exit 1
-                ;;
-              *)
-                echo "🛑 Invalid choice. Aborting."
-                exit 1
-                ;;
-            esac
+            if [ "$AUTO_REMOVE_MODE" = "auto_prompt" ]; then
+                echo
+                # Countdown timer with key press detection
+                countdown=$AUTO_REMOVE_TIMEOUT
+                user_interrupted=false
+                
+                while [ $countdown -gt 0 ]; do
+                    printf "\r⏱️  Auto-removing in %d seconds... Press any key to cancel " $countdown
+                    if read -t 1 -n 1 -s; then
+                        user_interrupted=true
+                        echo # New line after countdown
+                        break
+                    fi
+                    ((countdown--))
+                done
+                
+                if [ "$user_interrupted" = false ]; then
+                    echo # New line after countdown
+                    echo "🗑️  Auto-removing unlisted packages..."
+                    brew bundle cleanup --file "$BREWFILE_PATH" --force --quiet
+                    echo "✅ Cleanup complete."
+                else
+                    # User interrupted, show full menu
+                    echo
+                    echo "Choose an action:"
+                    echo "  [A]dd these packages to brewfile.txt"
+                    echo "  [R]emove these packages"
+                    echo "  [S]kip cleanup, but reset the timer"
+                    echo "  [X] Abort 'chezmoi apply'. Timer will NOT be reset"
+                    read -p "Your choice? (A/R/S/X) " -n 1 -r REPLY
+                    echo
+                    REPLY_LOWER=$(echo "$REPLY" | tr '[:upper:]' '[:lower:]')
+                    case "$REPLY_LOWER" in
+                      a)
+                        echo "📝 Adding packages to brewfile.txt..."
+                        # Convert package names to brew "package" format and append
+                        echo "$EXTRANEOUS_PACKAGES" | while read -r pkg; do
+                            if [ -n "$pkg" ]; then
+                                echo "brew \"$pkg\"" >> "$BREWFILE_PATH"
+                            fi
+                        done
+                        echo "✅ Packages added to brewfile.txt"
+                        ;;
+                      r)
+                        echo "🗑️  Removing unlisted packages..."
+                        brew bundle cleanup --file "$BREWFILE_PATH" --force --quiet
+                        echo "✅ Cleanup complete."
+                        ;;
+                      s)
+                        echo "ℹ️  Skipping cleanup as requested."
+                        ;;
+                      x)
+                        echo "🛑 Aborting entire 'chezmoi apply' process."
+                        exit 1
+                        ;;
+                      *)
+                        echo "🛑 Invalid choice. Aborting."
+                        exit 1
+                        ;;
+                    esac
+                fi
+            else
+                # Original prompt mode
+                echo
+                echo "Choose an action:"
+                echo "  [A]dd these packages to brewfile.txt"
+                echo "  [R]emove these packages"
+                echo "  [S]kip cleanup, but reset the timer"
+                echo "  [X] Abort 'chezmoi apply'. Timer will NOT be reset"
+                read -p "Your choice? (A/R/S/X) " -n 1 -r REPLY
+                echo
+                REPLY_LOWER=$(echo "$REPLY" | tr '[:upper:]' '[:lower:]')
+                case "$REPLY_LOWER" in
+                  a)
+                    echo "📝 Adding packages to brewfile.txt..."
+                    # Convert package names to brew "package" format and append
+                    echo "$EXTRANEOUS_PACKAGES" | while read -r pkg; do
+                        if [ -n "$pkg" ]; then
+                            echo "brew \"$pkg\"" >> "$BREWFILE_PATH"
+                        fi
+                    done
+                    echo "✅ Packages added to brewfile.txt"
+                    ;;
+                  r)
+                    echo "🗑️  Removing unlisted packages..."
+                    brew bundle cleanup --file "$BREWFILE_PATH" --force --quiet
+                    echo "✅ Cleanup complete."
+                    ;;
+                  s)
+                    echo "ℹ️  Skipping cleanup as requested."
+                    ;;
+                  x)
+                    echo "🛑 Aborting entire 'chezmoi apply' process."
+                    exit 1
+                    ;;
+                  *)
+                    echo "🛑 Invalid choice. Aborting."
+                    exit 1
+                    ;;
+                esac
+            fi
         else # Non-interactive mode
             echo
             echo " unattended mode. Defaulting to skipping cleanup."
