@@ -2,19 +2,18 @@
   email = "andy@eick.com"
   name = "M. Andrew Eick"
 {{ if eq .chezmoi.os "darwin" }}
-  # Assume that 1password is installed if os x and I'll use that ssh key
-  signingkey = ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIGUUee06iP+CO2XUANghG9ANjhVj1hOzyrb+TDHRa5mM
+  signingkey = ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIAJldmPLBuDgtd+95XfPdncBYpxWfcXLaCX7lwM5GLCq andy-anywhere@eick.com
 {{ else }}
   # vipers for now
-  signingkey = ~/.ssh/id_ed25519.pub
+  signingkey = ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIAJldmPLBuDgtd+95XfPdncBYpxWfcXLaCX7lwM5GLCq andy-anywhere@eick.com
 {{ end }}
+
+# If I want to use the key from my SSH agent to sign, use the following line
+# N.B., this only works localy, not when the agent is fowarded
+# signingkey = SHA256:RLFKL0qVB1VWB7XC2qLlRYOlz7r9bJQAHabEa2kEhoA
 
 [gpg]
   format = ssh
-{{ if eq .chezmoi.os "darwin" }}
-[gpg "ssh"]
-  program = "/Applications/1Password.app/Contents/MacOS/op-ssh-sign"
-{{ end }}
 [commit]
   gpgsign = true
 
