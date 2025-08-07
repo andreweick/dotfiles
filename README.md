@@ -103,6 +103,43 @@ graph TD
 
 ## 📜 Managing Secrets
 
+### Adding New Encrypted Files
+
+To add a new file with secrets to your dotfiles:
+
+1. **Create the file in your home directory first:**
+   ```sh
+   # Create and edit the file where it will live
+   touch ~/.config/myapp/secrets.conf
+   nano ~/.config/myapp/secrets.conf
+   ```
+
+2. **Add it to chezmoi with encryption:**
+   ```sh
+   chezmoi add ~/.config/myapp/secrets.conf --encrypted
+   ```
+   
+   This will copy the file to your chezmoi source directory and encrypt it using your `~/.config/age/key.txt`.
+
+3. **For future edits, always use `chezmoi edit`:**
+   ```sh
+   chezmoi edit ~/.config/myapp/secrets.conf
+   ```
+
+### How Encrypted Files Work with Missing Keys
+
+Chezmoi intelligently handles missing decryption keys:
+
+- **When `~/.config/age/key.txt` is missing**: `chezmoi apply` will automatically skip all encrypted `.age` files without errors
+- **When the key is present**: `chezmoi apply` will decrypt and apply all encrypted files normally
+
+This enables the elegant bootstrap workflow:
+1. Fresh machine → `chezmoi apply` → only non-encrypted configs are applied
+2. Run `./setup-age-key.sh` → creates your decryption key
+3. Run `chezmoi apply` again → now encrypted files are also applied
+
+No manual configuration needed - chezmoi automatically detects key availability.
+
 ### How to Edit Secret Files
 
 You cannot edit encrypted source files directly. Instead, use the `chezmoi edit` command, which handles the decryption and re-encryption for you automatically.

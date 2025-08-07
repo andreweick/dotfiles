@@ -48,11 +48,13 @@ chezmoi edit ~/.config/rclone/secrets.conf
 - `setup-age-key.sh`: Bootstrap script for decrypting secrets on new machines
 - `generate-encrypted-keys.sh`: Updates encrypted SSH keys or master password
 - `run_always_after_brew-interactive-cleanup.sh`: Manages Homebrew packages weekly
+- `install.sh`: Installation helper script
 
 ### Managed Configurations
 - Shell: zsh, git config
 - Editor: Neovim (Kickstart-based)
 - Terminal: Ghostty, WezTerm, Starship prompt
-- Cloud: RClone
-- Security: SSH, AWS configs
+- Cloud: RClone, AWS configs
+- Security: SSH (including YubiKey SSH keys), Cosign
 - History: Atuin
+- Package Management: Homebrew via Brewfile
