@@ -1,0 +1,17 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(go build:*)",
+      "Bash(go doc:*)",
+      "Bash(go test:*)",
+      "Bash(golangci-lint:*)",
+      "Bash(grep:*)",
+      "Bash(ls:*)",
+      "Bash(make:*)",
+      "Bash(playwright:*)",
+      "Bash(rg:*)"
+    ],
+    "deny": []
+  },
+  "includeCoAuthoredBy": false
+}
