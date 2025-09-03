@@ -1,17 +1,20 @@
 {
+  "includeCoAuthoredBy": false,
   "permissions": {
     "allow": [
       "Bash(go build:*)",
       "Bash(go doc:*)",
       "Bash(go test:*)",
+      "Bash(go fmt:*)",
       "Bash(golangci-lint:*)",
       "Bash(grep:*)",
       "Bash(ls:*)",
       "Bash(make:*)",
+      "Bash(just:*)",
       "Bash(playwright:*)",
       "Bash(rg:*)"
     ],
     "deny": []
   },
-  "includeCoAuthoredBy": false
+  "model": "opusplan"
 }

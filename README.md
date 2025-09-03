@@ -10,6 +10,28 @@ If the private key material isn't available (at `~/.config/age/key.txt`) chezmoi
 
 ## 🚀 Quick Start & Daily Usage
 
+### Forcing Homebrew Updates
+
+By default, Homebrew packages are synced weekly. To force an immediate update:
+
+```sh
+BREW_FORCE_UPDATE=1 chezmoi apply
+```
+
+This will bypass the weekly timer and immediately sync your Homebrew packages with your brewfile.
+
+-----
+
+### Adding an encrypted rclone config
+
+**Example: Editing the RClone secrets**
+
+```sh
+chezmoi edit ~/.config/rclone/secrets.conf
+chezmoi apply
+```
+
+
 ### Bootstrapping a New System
 
 #### macOS Prerequisites
@@ -36,27 +58,35 @@ sh -c "$(curl -fsLS get.chezmoi.io)"
 
 ### Installation on a New Machine
 
-Run this command to install `chezmoi` and apply the dotfiles from this repository.
+**Two-Phase Bootstrap Process:**
 
-```sh
-sh -c "$(curl -fsLS get.chezmoi.io)" -- init --apply andreweick
-```
+1. **Phase 1 - Apply Non-Encrypted Files:**
+   ```sh
+   sh -c "$(curl -fsLS get.chezmoi.io)" -- init --apply andreweick
+   ```
+   This installs chezmoi and applies all non-encrypted dotfiles. Encrypted files are automatically skipped when the age key is missing.
+
+2. **Phase 2 - Decrypt and Apply Secrets:**
+   ```sh
+   "$(chezmoi source-path)/setup-age-key.sh"
+   chezmoi apply
+   ```
+   The setup script creates your age decryption key, then the second `chezmoi apply` processes all the encrypted files.
 
 ### Initializing on a Machine with `chezmoi` already installed
 
-If `chezmoi` is already installed, use this command to pull down the dotfiles:
+If `chezmoi` is already installed, use the same two-phase process:
 
-```sh
-chezmoi init [github.com/andreweick/dotfiles](https://github.com/andreweick/dotfiles) --apply
-```
+1. **Phase 1 - Apply Non-Encrypted Files:**
+   ```sh
+   chezmoi init github.com/andreweick/dotfiles --apply
+   ```
 
-### Decrypting Secrets for the First Time
-
-After installing, your secrets will still be encrypted. Run this script to decrypt them. It will try to use your SSH key first, then fall back to prompting for your master password.
-
-```sh
-"$(chezmoi source-path)/setup-age-key.sh"
-```
+2. **Phase 2 - Decrypt and Apply Secrets:**
+   ```sh
+   "$(chezmoi source-path)/setup-age-key.sh"
+   chezmoi apply
+   ```
 
 > **Note:** The master password for fallback decryption is stored in 1Password at:
 > `op://Private/xcjfxrcih4tzajtsocvlkpjgm4/password`
@@ -111,14 +141,14 @@ To add a new file with secrets to your dotfiles:
    ```sh
    # Create and edit the file where it will live
    touch ~/.config/myapp/secrets.conf
-   nano ~/.config/myapp/secrets.conf
+   nvim ~/.config/myapp/secrets.conf
    ```
 
 2. **Add it to chezmoi with encryption:**
    ```sh
    chezmoi add ~/.config/myapp/secrets.conf --encrypted
    ```
-   
+
    This will copy the file to your chezmoi source directory and encrypt it using your `~/.config/age/key.txt`.
 
 3. **For future edits, always use `chezmoi edit`:**

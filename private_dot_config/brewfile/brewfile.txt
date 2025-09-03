@@ -1,8 +1,6 @@
 tap "nikitabobko/tap"
 cask "nikitabobko/tap/aerospace"
 
-brew "charmbracelet/tap/crush"
-
 brew "age"
 brew "atuin", restart_service: :changed
 brew "chezmoi"

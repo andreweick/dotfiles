@@ -31,6 +31,13 @@ fi
 SHOULD_RUN=false
 RUN_REASON=""
 
+# CONDITION 0: Force update via environment variable
+BREW_FORCE_LOWER=$(echo "$BREW_FORCE_UPDATE" | tr '[:upper:]' '[:lower:]')
+if [ "$BREW_FORCE_LOWER" = "1" ] || [ "$BREW_FORCE_LOWER" = "true" ] || [ "$BREW_FORCE_LOWER" = "t" ]; then
+    SHOULD_RUN=true
+    RUN_REASON="Force update requested via BREW_FORCE_UPDATE environment variable."
+fi
+
 # Helper function to get a file's modification time in seconds.
 get_mtime() {
     if [[ "$(uname)" == "Darwin" ]]; then

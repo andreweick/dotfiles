@@ -31,9 +31,20 @@ destination. We match against the TARGET path of the secrets file.
 {{- $keyPath := joinPath .chezmoi.homeDir ".config" "age" "key.txt" -}}
 {{- if not (stat $keyPath) -}}
 
-# The age key is not present, so ignore the rclone secrets file by its TARGET path.
-# This target path matches the error message you were seeing.
+# The age key is not present, so ignore all encrypted files by their TARGET paths.
+# This prevents chezmoi from failing when trying to decrypt files without the key.
 .config/rclone/secrets.conf
+.config/cosign/cosign.key
+.ssh/yubi/id_red_yubi_1_sk
+.ssh/yubi/id_red_yubi_1_sk.pub
+.ssh/yubi/id_red_yubi_1_sk_resident
+.ssh/yubi/id_red_yubi_1_sk_resident.pub
+.ssh/yubi/id_red_yubi_2_sk
+.ssh/yubi/id_red_yubi_2_sk.pub
+.ssh/yubi/id_red_yubi_2_sk_resident
+.ssh/yubi/id_red_yubi_2_sk_resident.pub
+.config/age/master_key_passphrase
+.config/age/master_key_ssh
 
 {{- end -}}
 

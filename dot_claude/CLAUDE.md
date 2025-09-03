@@ -161,6 +161,8 @@ Since tests are shuffled, don't rely on test order, even for subtests.
 
 Every time the `postgrestest.NewDatabase(t)`/`sqlitetest.NewDatabase(t)` test helpers are called, the database is in a clean state (no leftovers from other tests etc.).
 
+I always want a README.md and a justfile when you create a project.  Don't add fmt or lint targets.  Always add a build target and a 'run' target.  The run target relies on the build target and then passes all the input to the build artifact.  Always do 'double-dash' command flags, not single flags, I prefer the package https://github.com/urfave/cli.
+
 #### Miscellaneous
 
 - Variable naming:
