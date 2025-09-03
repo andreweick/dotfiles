@@ -1,0 +1,23 @@
+# Private Files Directory
+
+This directory contains decrypted sensitive files like:
+- Licensed fonts (.otf, .ttf)
+- Software licenses
+- Installation scripts with embedded licenses
+- Other sensitive materials that need encryption at rest
+
+## How it works:
+- Source files are stored encrypted (.age) in the chezmoi repository
+- During 'chezmoi apply', files automatically decrypt here if age key exists
+- Directory is created with 0700 permissions (owner-only access)
+- If no age key is available, this directory won't be created
+
+## Directory structure:
+- fonts/     - Licensed font files
+- licenses/  - License files and installation scripts
+- (add more subdirectories as needed)
+
+## Security:
+- This directory should NEVER be added to git
+- Original files are encrypted in the chezmoi source
+- Manual installation/usage from here is your responsibility

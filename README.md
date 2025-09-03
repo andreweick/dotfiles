@@ -253,6 +253,84 @@ When you get a new computer or generate a new SSH key, you need to grant it perm
 6.  **Copy this new `master_key_passphrase.age`** into your `chezmoi` source directory, overwriting the old one.
 7.  Commit the change to your Git repository.
 
+-----
+
+## 📁 Private Files (Encrypted Fonts, Licenses, Scripts)
+
+The `~/.config/private-files/` directory contains decrypted sensitive files like licensed fonts, software licenses, and installation scripts. These files are automatically decrypted during `chezmoi apply` when your age key is available.
+
+### Directory Structure
+
+```
+~/.config/private-files/
+├── fonts/        # Licensed font files (.otf, .ttf)
+├── licenses/     # License files and installation scripts
+└── README        # Explains the directory purpose
+```
+
+### Adding New Encrypted Files
+
+To add a new licensed font or sensitive file:
+
+1. **Create the final directory structure:**
+   ```sh
+   mkdir -p ~/.config/private-files/fonts
+   ```
+
+2. **Place your file in the final location:**
+   ```sh
+   cp your-licensed-font.otf ~/.config/private-files/fonts/
+   ```
+
+3. **Add it to chezmoi with encryption:**
+   ```sh
+   chezmoi add --encrypt ~/.config/private-files/fonts/your-licensed-font.otf
+   ```
+
+4. **Verify the encrypted file was created:**
+   ```sh
+   ls "$(chezmoi source-path)/private_dot_config/private-files/fonts/"
+   # You should see: encrypted_your-licensed-font.otf.age
+   ```
+
+### How It Works
+
+- **Encrypted Storage**: Files are stored as `encrypted_*.age` in the chezmoi source directory
+- **Automatic Decryption**: During `chezmoi apply`, files automatically decrypt to `~/.config/private-files/` if your age key (`~/.config/age/key.txt`) exists
+- **Graceful Skipping**: If no age key is available, encrypted files are silently skipped without errors
+- **Manual Usage**: Files are decrypted for you to manually install/use as needed (no automatic installation)
+
+### Security Notes
+
+- The `~/.config/private-files/` directory is created with `0700` permissions (owner-only access)
+- This directory should **never** be added to git
+- Only the encrypted `.age` versions are stored in your repository
+- Original files are safely encrypted using your age recipient key
+
+### Examples
+
+**Adding a licensed font:**
+```sh
+cp OperatorMono-Bold.otf ~/.config/private-files/fonts/
+chezmoi add --encrypt ~/.config/private-files/fonts/OperatorMono-Bold.otf
+```
+
+**Adding a license file:**
+```sh
+cp software-license.txt ~/.config/private-files/licenses/
+chezmoi add --encrypt ~/.config/private-files/licenses/software-license.txt
+```
+
+**Adding an installation script:**
+```sh
+cp install-licensed-software.sh ~/.config/private-files/licenses/
+chezmoi add --encrypt ~/.config/private-files/licenses/install-licensed-software.sh
+```
+
+### For AI Assistants
+
+This system uses chezmoi's built-in age encryption. When the age identity file exists at `~/.config/age/key.txt`, chezmoi automatically decrypts all `.age` files during apply operations. Files are stored in the chezmoi source directory with the `encrypted_` prefix and `.age` suffix. The decryption process is completely handled by chezmoi's templating system - no custom scripts needed.
+
 <!-- end list -->
 <a id="my"></a>
 ```ascii
