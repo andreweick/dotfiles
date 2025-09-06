@@ -33,6 +33,7 @@ destination. We match against the TARGET path of the secrets file.
 
 # The age key is not present, so ignore all encrypted files by their TARGET paths.
 # This prevents chezmoi from failing when trying to decrypt files without the key.
+.config/private-files/
 .config/rclone/secrets.conf
 .config/cosign/cosign.key
 .ssh/yubi/id_red_yubi_1_sk
