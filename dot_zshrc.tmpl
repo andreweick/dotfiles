@@ -35,6 +35,17 @@ then
   eval "$(atuin init zsh)"
 fi
 
+if command -v zoxide &> /dev/null
+then
+  eval "$(zoxide init zsh)"
+fi
+
+# For just command runner - alias 'j' to launch chooser by default
+if command -v just &> /dev/null
+then
+  alias j="just --choose"
+fi
+
 # -----------------------------------------------------------------------------
 # 🔐 SSH Agent Auto-Key Loader (YubiKey-Aware)
 # -----------------------------------------------------------------------------

@@ -1,0 +1,34 @@
+[settings]
+  # Search parent directories for recipes
+  fallback = true
+
+  # Export all variables as env vars
+  export = true
+
+  # Load .env files automatically
+  dotenv-load = true
+
+  # Allow positional arguments ($1, $2, etc)
+  positional-arguments = true
+
+  # Choose shell (sh is more portable than bash)
+  shell = ["sh", "-cu"]
+
+  # Ignore recipe lines beginning with @
+  quiet = false
+
+  # Set working directory to where justfile is located
+  working-directory = "@justfile()"
+
+  timestamp = true
+
+  chooser = "$HOME/.config/just/chooser.sh"
+
+[alias]
+  # Global aliases for common commands
+  t = "test"
+  b = "build"
+  r = "run"
+  c = "clean"
+  d = "dev"
+  h = "choose"

@@ -56,6 +56,14 @@ sudo apt install age
 sh -c "$(curl -fsLS get.chezmoi.io)"
 ```
 
+### Clone the repo locally with ssh
+Need to clone down the repo with SSH but I don't have any config files setup, so get a GITHUB key locally and...
+
+```sh
+GIT_SSH_COMMAND='ssh -i ~/.ssh/andy-anywhere' git clone git@github.com:andreweick/dotfiles.git
+chezmoi init --source="$HOME/code/dotfiles" --apply
+```
+
 ### Installation on a New Machine
 
 **Two-Phase Bootstrap Process:**
