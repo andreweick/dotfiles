@@ -9,11 +9,11 @@ quit:
     @echo "👋 Exiting..."
 
 # Apply chezmoi changes to system
-apply:
+df-apply:
     chezmoi apply
 
 # Pull from git and apply changes
-update:
+df-update:
     chezmoi update
 
 # Show chezmoi status and diff
@@ -42,7 +42,7 @@ push:
     git push
 
 # Force Homebrew update (bypasses weekly timer)
-brew-force:
+df-brew-force:
     BREW_FORCE_UPDATE=1 chezmoi apply
 
 # Setup Atuin on second machine (login and sync)

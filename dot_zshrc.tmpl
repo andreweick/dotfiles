@@ -43,7 +43,9 @@ fi
 # For just command runner - alias 'j' to launch chooser by default
 if command -v just &> /dev/null
 then
-  alias j="just --choose"
+  export JUST_CHOOSER="$HOME/.config/just/chooser.sh"
+  alias jh="just -f $HOME/justfile"
+  alias j="just"
 fi
 
 # -----------------------------------------------------------------------------
