@@ -1,6 +1,11 @@
 #!/usr/bin/env sh
 # Simple chooser for just
-# Priority: gum -> fzf -> default just chooser
+# Priority order can be controlled with JUST_CHOOSER_PRIORITY environment variable
+# Default: gum -> fzf -> default just chooser
+# Example: JUST_CHOOSER_PRIORITY="fzf,gum" to prefer fzf first
+
+# Chooser priority (comma-separated list)
+JUST_CHOOSER_PRIORITY="${JUST_CHOOSER_PRIORITY:-fzf,gum}"
 
 # Dracula theme colors
 PURPLE="#BD93F9"
@@ -11,8 +16,8 @@ GRAY="#6272A4"
 FG="#F8F8F2"
 BG="#44475A"
 
-if command -v gum >/dev/null 2>&1; then
-    # Use gum filter for fuzzy search
+# Function to run gum chooser
+run_gum() {
     exec gum filter \
         --height 20 \
         --indicator "  " \
@@ -22,9 +27,10 @@ if command -v gum >/dev/null 2>&1; then
         --header.foreground "$GREEN" \
         --placeholder "Type to filter..." \
         --fuzzy
+}
 
-elif command -v fzf >/dev/null 2>&1; then
-    # Use fzf with Dracula colors and preview
+# Function to run fzf chooser
+run_fzf() {
     exec fzf \
         --height 60% \
         --reverse \
@@ -34,9 +40,28 @@ elif command -v fzf >/dev/null 2>&1; then
         --pointer "  " \
         --prompt "  " \
         --color "pointer:$PURPLE,header:$GREEN,info:$CYAN,spinner:$ORANGE,hl:$PURPLE,fg+:$FG,bg+:$BG,hl+:$PURPLE,prompt:$GRAY"
+}
 
-else
-    # No chooser available - just will use its default behavior
-    exit 127
-fi
+# Try choosers in priority order
+IFS=',' read -r chooser1 chooser2 <<EOF
+$JUST_CHOOSER_PRIORITY
+EOF
+
+for chooser in $chooser1 $chooser2; do
+    case "$chooser" in
+        gum)
+            if command -v gum >/dev/null 2>&1; then
+                run_gum
+            fi
+            ;;
+        fzf)
+            if command -v fzf >/dev/null 2>&1; then
+                run_fzf
+            fi
+            ;;
+    esac
+done
+
+# No chooser available - just will use its default behavior
+exit 127
 

@@ -2,7 +2,7 @@
 
 # Default recipe - shows interactive chooser when just running 'just'
 default:
-    @just --choose
+    -@just --choose || true
 
 # Exit without doing anything (for chooser menu)
 quit:
@@ -50,15 +50,3 @@ atuin-setup:
     atuin login -u maeick
     atuin sync -f
 
-# Check for unpushed git repositories in $HOME/code
-check-unpushed:
-    #!/bin/bash
-    find $HOME/code -type d -name ".git" | while read gitdir; do
-        repo=$(dirname "$gitdir")
-        cd "$repo"
-        if [ -n "$(git log @{u}.. 2>/dev/null)" ]; then
-            echo "📤 $(basename "$repo"): has unpushed commits"
-        elif ! git rev-parse --abbrev-ref @{u} >/dev/null 2>&1; then
-            echo "🔗 $(basename "$repo"): no upstream branch set"
-        fi
-    done
