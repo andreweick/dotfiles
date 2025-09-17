@@ -335,6 +335,67 @@ cp install-licensed-software.sh ~/.config/private-files/licenses/
 chezmoi add --encrypt ~/.config/private-files/licenses/install-licensed-software.sh
 ```
 
+
+# Zsh Completions Management
+
+This setup automatically generates and installs Zsh completion scripts for installed command-line tools. It is designed to be robust, only creating a completion file if the corresponding tool is actually found on the system. This prevents errors during `chezmoi apply` on a new machine where tools may not be installed yet.
+
+The entire process is managed declaratively by `chezmoi` using templates.
+
+---
+## How It Works
+
+The automation relies on three key `chezmoi` features working together:
+
+1.  **Conditional File Creation (`create_` prefix)**
+    The template filenames in `dot_zsh/completions/` are prefixed with `create_` (e.g., `create__gh.tmpl`). This special prefix tells `chezmoi` to only create the final file in `~/.zsh/completions` if the template's output is **not empty**.
+
+2.  **Conditional Content (`lookPath`)**
+    Inside each template, an `if lookPath "tool-name"` block checks if the command is available in the system's `$PATH`. If the tool is not found, the template produces no output. This triggers the `create_` rule, and `chezmoi` silently skips creating the file.
+
+3.  **Dynamic Content (`output`)**
+    If the `lookPath` check succeeds, the `{{ output "tool-name" ... }}` function runs the tool's built-in command to generate the completion script. This output becomes the content of the final file.
+
+This combination ensures that `chezmoi apply` is always safe to run and the completion scripts are always up-to-date with the installed versions of the tools.
+
+---
+## How to Add a New Completion Script
+
+Adding a new completion is a two-step process.
+
+#### 1. Find the Completion Command
+First, find the command the new tool uses to generate its Zsh completions. Check the tool's documentation or help flag. Common patterns include:
+* `new-tool completion zsh`
+* `new-tool --completions zsh`
+* `new-tool gen-completions --shell zsh`
+
+#### 2. Create the Template File
+Create a new template file in the `dot_zsh/completions/` directory within this `chezmoi` repo.
+
+* **Filename:** Must follow the pattern `create__[tool-name].tmpl`
+* **Content:** Must follow this template structure:
+
+    ```go-template
+    {{- /* Check if [tool-name] is installed */ -}}
+    {{- if lookPath "[tool-name]" -}}
+    {{-   /* If it is, run the command to generate the script */ -}}
+    {{-   output "[tool-name]" "[arg1]" "[arg2...]" -}}
+    {{- end -}}
+    ```
+
+### Example: Adding `gh` (GitHub CLI)
+1.  **Find the command:** `gh completion --shell zsh`
+2.  **Create the template file:**
+    * **Filename:** `dot_zsh/completions/create__gh.tmpl`
+    * **Content:**
+        ```go-template
+        {{- if lookPath "gh" -}}
+        {{   output "gh" "completion" "--shell" "zsh" }}
+        {{- end -}}
+        ```
+
+After adding the new template file, simply run `chezmoi apply` to generate the new completion script in your home directory.
+
 ### For AI Assistants
 
 This system uses chezmoi's built-in age encryption. When the age identity file exists at `~/.config/age/key.txt`, chezmoi automatically decrypts all `.age` files during apply operations. Files are stored in the chezmoi source directory with the `encrypted_` prefix and `.age` suffix. The decryption process is completely handled by chezmoi's templating system - no custom scripts needed.

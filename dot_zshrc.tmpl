@@ -1,8 +1,13 @@
 export PATH=$HOME/.local/bin/:$HOME/bin:/usr/local/bin:/opt/homebrew/bin:/usr/local/go/bin:$PATH
 
 # Activate zsh autocompletions
-autoload -Uz compinit
+# Add our custom completions directory to the function path (fpath)
+fpath=(~/.zsh/completions $fpath)
+
+# Initialize the Zsh completion system
+autoload -U compinit
 compinit
+
 {{ if eq .chezmoi.os "linux" }}
   export EDITOR=nvim
   alias db='distrobox enter boxkit --name boxkit -- zellij'

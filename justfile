@@ -9,40 +9,31 @@ quit:
     @echo "👋 Exiting..."
 
 # Apply chezmoi changes to system
-df-apply:
+czm-apply:
     chezmoi apply
 
 # Pull from git and apply changes
-df-update:
+czm-update:
     chezmoi update
 
 # Show chezmoi status and diff
-status:
+czm-status:
     chezmoi status
 
 # Edit an encrypted file
-edit file:
+czm-edit file:
     chezmoi edit {{ file }}
 
 # Add a new encrypted file
-add-encrypted file:
+czm-add-encrypted file:
     chezmoi add --encrypt {{ file }}
 
 # Setup age decryption key (run once on new machines)
-setup-age-key:
+czm-setup-age-key:
     "$(chezmoi source-path)/setup-age-key.sh"
 
-# Commit changes with message
-commit message:
-    git add .
-    git commit -m "{{ message }}"
-
-# Push to remote repository
-push:
-    git push
-
 # Force Homebrew update (bypasses weekly timer)
-df-brew-force:
+czm-brew-update:
     BREW_FORCE_UPDATE=1 chezmoi apply
 
 # Setup Atuin on second machine (login and sync)
