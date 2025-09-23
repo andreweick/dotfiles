@@ -45,6 +45,12 @@ then
   eval "$(zoxide init zsh)"
 fi
 
+# Check if rclone is installed before creating an alias
+if command -v rclone >/dev/null 2>&1
+then
+  alias rclone="rclone --exclude '.*{/**,}' --progress"
+fi
+
 # For just command runner - alias 'j' to launch chooser by default
 if command -v just &> /dev/null
 then
