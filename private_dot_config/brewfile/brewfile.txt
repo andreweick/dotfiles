@@ -1,5 +1,6 @@
 tap "nikitabobko/tap"
 cask "nikitabobko/tap/aerospace"
+tap "benbjohnson/litestream"
 
 brew "age"
 brew "atuin", restart_service: :changed
