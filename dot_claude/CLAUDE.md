@@ -22,165 +22,36 @@ These are the packages typically present in applications (some may be missing, w
 - `sqltest`/`sqlitetest`/`postgrestest`: package used in testing, for setting up and tearing down test databases
 - `s3`: logic for interacting with Amazon S3 or compatible object stores
 - `s3test`: package used in testing, for setting up and tearing down test S3 buckets
-- `llm`: clients for interacting with large language models (LLMs) and foundation models
-- `llmtest`: package used in testing, for setting up LLM clients for testing
-- `http`: HTTP handlers for the application
-- `html`: HTML templates for the application, written with the gomponents library (see https://www.gomponents.com/llms.txt for how to use that if you need to)
 
 ### Code style
-
-#### Dependency injection
-
-I make heavy use of dependency injection between components. This is typically done with private interfaces on the receiving side. Note the use of `userGetter` in this example:
-
-```go user.go
-package http
-
-import (
-	"net/http"
-
-	"github.com/go-chi/chi/v5"
-	"maragu.dev/httph"
-
-	"model"
-)
-
-type UserResponse struct {
-	Name string
-}
-
-type userGetter interface {
-	GetUser(ctx context.Context, id model.ID) (model.User, error)
-}
-
-func User(r chi.Router, db userGetter) {
-	r.Get("/user", httph.JSONHandler(func(w http.ResponseWriter, r *http.Request, _ any) (UserResponse, error) {
-		id := r.URL.Query().Get("id")
-		user, err := db.GetUser(r.Context(), model.ID(id))
-		if err != nil {
-			return UserResponse{}, httph.HTTPError{Code: http.StatusInternalServerError, Err: errors.New("error getting user")}
-		}
-		return UserResponse{Name: user.Name}, nil
-	}))
-}
-
-```
 
 #### Tests
 
 I write tests for most functions and methods. I almost always use subtests with a good description of whats is going on and what the expected result is.
 
-Here's an example:
-
-```go example.go
-package example
-
-type Thing struct {}
-
-func (t *Thing) DoSomething() (bool, error) {
-	return true, nil
-}
-```
-
-```go example_test.go
-package example_test
-
-import (
-	"testing"
-
-	"maragu.dev/is"
-
-	"example"
-)
-
-func TestThing_DoSomething(t *testing.T) {
-	t.Run("should do something and return a nil error", func(t *testing.T) {
-		thing := &example.Thing{}
-
-		ok, err := thing.DoSomething()
-		is.NotError(t, err)
-		is.True(t, ok)
-	})
-}
-```
-
-Sometimes I use table-driven tests:
-
-```go example.go
-package example
-
-import "errors"
-
-type Thing struct {}
-
-var ErrChairNotSupported = errors.New("chairs not supported")
-
-func (t *Thing) DoSomething(with string) error {
-	if with == "chair" {
-		return ErrChairNotSupported
-	}
-	return nil
-}
-```
-
-```go example_test.go
-package example_test
-
-func TestThing_DoSomething(t *testing.T) {
-	tests := []struct {
-		name     string
-		input    string
-		expected error
-	}{
-		{name: "should do something with the table and return a nil error", input: "table", expected: nil},
-		{name: "should do something with the chair and return an ErrChairNotSupported", input: "chair", expected: example.ErrChairNotSupported},
-	}
-
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
-			thing := &example.Thing{}
-
-			err := thing.DoSomething(test.input)
-			if test.expected != nil {
-				is.Error(t, test.expected, err)
-			} else {
-				is.NotError(t, err)
-			}
-		})
-	}
-}
-```
-
-I prefer integration tests with real dependencies over mocks, because there's nothing like the real thing. Dependencies are typically run in Docker containers. You can assume the dependencies are running when running tests.
-
 It makes sense to use mocks when the important part of a test isn't the dependency, but it plays a smaller role. But for example, when testing database methods, a real underlying database should be used.
-
-I use test assertions with the module `maragu.dev/is`. Available functions: `is.True`, `is.Equal`, `is.Nil`, `is.NotNil`, `is.EqualSlice`, `is.NotError`, `is.Error`. All of these take an optional message as the last parameter.
 
 Since tests are shuffled, don't rely on test order, even for subtests.
 
 Every time the `postgrestest.NewDatabase(t)`/`sqlitetest.NewDatabase(t)` test helpers are called, the database is in a clean state (no leftovers from other tests etc.).
 
-I always want a README.md and a justfile when you create a project.  Don't add fmt or lint targets.  Always add a build target and a 'run' target.  The run target relies on the build target and then passes all the input to the build artifact.  Always do 'double-dash' command flags, not single flags.
+I always want a README.md and a justfile when you create a project.  Use a lowercase 'j' in justfile.  Don't add fmt or lint targets in justfiles.  
+
+Always add a build target and a 'run' target that will build and run the app, passing as command line switches anything I pass in on the 'just' line.  The run target relies on the build target and then passes all the input to the build artifact.  
+
+I prefer'double-dash' command flags, not single flags, but remember not all commands have them, so double check the flag exists.
+
+I prefer everying compiled into a single binary, not shelling out and calling commands from the prompt.
 
 #### Miscellaneous
 
 - Variable naming:
   - `req` for requests, `res` for responses
 - Prefer lowercase SQL queries
-- There are SQL helpers available, at `Database.H.Select`, `Database.H.Exec`, `Database.H.Get`, `Database.H.InTransaction`.
-- Use the `any` builtin in Go instead of `interface{}`
-- There's an alias for `sql.ErrNoRows` from stdlib at `maragu.dev/glue/sql.ErrNoRows`, so you don't have to import both
-- In tests, use `t.Context()` instead of `context.Background()`
-- Test helper functions should call `testing.T.Helper()`
-- All HTML buttons need the `cursor-pointer` CSS class
-- SQLite time format is always a string returned by `strftime('%Y-%m-%dT%H:%M:%fZ')`
-- Remember that private functions in Go are package-level, so you can use them across files in the same package
-- Lowercase the beginning of HTML component names unless they need to be used by an HTTP handler outside the package
 
 ### Testing, linting, evals
 
-You can access the database by using `psql` or `sqlite3` in the shell.
+You can access the database by using `sqlite3` in the shell.
 
 ### Version control
 

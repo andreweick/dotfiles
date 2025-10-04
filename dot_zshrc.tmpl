@@ -45,10 +45,31 @@ then
   eval "$(zoxide init zsh)"
 fi
 
-# Check if rclone is installed before creating an alias
-if command -v rclone >/dev/null 2>&1
-then
-  alias rclone="rclone --exclude '.*{/**,}' --progress"
+if command -v rclone >/dev/null 2>&1; then
+  unalias rclone 2>/dev/null
+  rclone() {
+    if [[ "$1" =~ ^(sync|copy|move|copyto|moveto)$ ]]; then
+      local extra=()
+      local args_str=" $* "
+      
+      [[ "$args_str" == *" --ignore-case-sync "* ]] || extra+=(--ignore-case-sync)
+      [[ "$args_str" == *" --progress "* ]]         || extra+=(--progress)
+      
+      # Exclude macOS and other junk files
+      if [[ "$args_str" != *" --exclude "* ]]; then
+        extra+=(
+          --exclude '.DS_Store'
+          --exclude '.Spotlight-V100'
+          --exclude '.Trashes'
+          --exclude 'Thumbs.db'  # Windows
+        )
+      fi
+      
+      command rclone "$@" "${extra[@]}"
+    else
+      command rclone "$@"
+    fi
+  }
 fi
 
 # For just command runner - alias 'j' to launch chooser by default
