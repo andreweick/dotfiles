@@ -1,5 +1,9 @@
 # Dotfiles management with chezmoi
 
+# When a recipe isn't found here, search up the directory tree for it
+# Stops at the first justfile without 'set fallback' (usually project root)
+set fallback
+
 # Default recipe - shows interactive chooser when just running 'just'
 default:
     -@just --choose || true
