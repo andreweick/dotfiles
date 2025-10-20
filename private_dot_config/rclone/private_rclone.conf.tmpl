@@ -22,6 +22,18 @@ shell_type = unix
 md5sum_command = md5sum
 sha1sum_command = sha1sum
 
+[pmcHasher]
+type = hasher
+remote = /Volumes/Mini Pudge/pmc
+hashes = md5
+max_age = off
+
+[jackie2Hasher]
+type = hasher
+remote = jackie2:/media
+hashes = md5
+max_age = off
+
 {{/* --- Logic to include encrypted secrets --- */}}
 
 {{- $keyPath := joinPath .chezmoi.homeDir ".config" "age" "key.txt" -}}
