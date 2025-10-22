@@ -94,68 +94,7 @@ if [ "$SHOULD_RUN" = true ]; then
         fi
     done < "$APTFILE_PATH"
 
-    echo "🔎 Checking for manually installed packages not in your aptfile.txt..."
-
-    # Get list of manually installed packages
-    MANUAL_PACKAGES=$(apt-mark showmanual | sort)
-
-    # Get list of packages in aptfile (excluding comments)
-    APTFILE_PACKAGES=$(grep -v "^[[:space:]]*#" "$APTFILE_PATH" | grep -v "^[[:space:]]*$" | xargs -n1 | sort)
-
-    # Find packages that are manually installed but not in aptfile
-    EXTRANEOUS_PACKAGES=$(comm -23 <(echo "$MANUAL_PACKAGES") <(echo "$APTFILE_PACKAGES"))
-
-    if [ -n "$EXTRANEOUS_PACKAGES" ]; then
-        echo
-        echo "❗️ Found packages installed that are not in your aptfile.txt:"
-        echo "--------------------------------------------------"
-        echo "$EXTRANEOUS_PACKAGES"
-        echo "--------------------------------------------------"
-
-        if [ -t 0 ]; then # Interactive check
-            echo
-            echo "Choose an action:"
-            echo "  [A]dd these packages to aptfile.txt"
-            echo "  [R]emove these packages (warning: may break dependencies)"
-            echo "  [S]kip cleanup, but reset the timer"
-            echo "  [X] Abort 'chezmoi apply'. Timer will NOT be reset"
-            read -p "Your choice? (A/R/S/X) " -n 1 -r REPLY
-            echo
-            REPLY_LOWER=$(echo "$REPLY" | tr '[:upper:]' '[:lower:]')
-            case "$REPLY_LOWER" in
-              a)
-                echo "📝 Adding packages to aptfile.txt..."
-                echo "$EXTRANEOUS_PACKAGES" | while read -r pkg; do
-                    if [ -n "$pkg" ]; then
-                        echo "$pkg" >> "$APTFILE_PATH"
-                    fi
-                done
-                echo "✅ Packages added to aptfile.txt"
-                ;;
-              r)
-                echo "🗑️  Removing unlisted packages..."
-                echo "$EXTRANEOUS_PACKAGES" | xargs -r sudo apt remove -y
-                echo "✅ Cleanup complete."
-                ;;
-              s)
-                echo "ℹ️  Skipping cleanup as requested."
-                ;;
-              x)
-                echo "🛑 Aborting entire 'chezmoi apply' process."
-                exit 1
-                ;;
-              *)
-                echo "🛑 Invalid choice. Aborting."
-                exit 1
-                ;;
-            esac
-        else # Non-interactive mode
-            echo
-            echo "ℹ️  Running in unattended mode. Defaulting to skipping cleanup."
-        fi
-    else
-        echo "✅ Your system is in sync with your aptfile.txt."
-    fi
+    echo "✅ Package installation complete."
 
     # --- On success, update the timestamp to reset the timer ---
     echo "⏲️  Resetting the periodic timer."
