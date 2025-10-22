@@ -1,7 +1,9 @@
 # chezmoi has built-in support for expanding the tilde character, which represents the user's home directory.
 sourceDir = "~/code/dotfiles/"
 
+{{ if stat (joinPath .chezmoi.homeDir ".config/age/key.txt") -}}
 encryption = "age"
 [age]
     identity = "~/.config/age/key.txt"
     recipient = "age1hquxd29c04avyurq0ds4jw3j94rdt7j69awy4lehwtgg0rvyvucsddjewd"
+{{ end -}}
