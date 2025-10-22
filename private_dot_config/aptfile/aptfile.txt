@@ -4,7 +4,6 @@
 
 # --- Direct apt packages ---
 age
-sops
 ripgrep
 fzf
 nodejs
@@ -20,14 +19,30 @@ kubectl
 #   sudo apt update
 #   sudo apt install gh
 
-# cosign
-#   wget https://github.com/sigstore/cosign/releases/download/v2.2.2/cosign_2.2.2_amd64.deb
-#   sudo dpkg -i cosign_2.2.2_amd64.deb
-
 # flux (FluxCD)
 #   curl -s https://fluxcd.io/install.sh | sudo bash
 
 # --- Need manual/script installation ---
+# sops (secrets encryption)
+#   # For ARM64/Raspberry Pi:
+#   wget https://github.com/getsops/sops/releases/download/v3.8.1/sops-v3.8.1.linux.arm64
+#   sudo mv sops-v3.8.1.linux.arm64 /usr/local/bin/sops
+#   sudo chmod +x /usr/local/bin/sops
+#   # For x86_64:
+#   wget https://github.com/getsops/sops/releases/download/v3.8.1/sops-v3.8.1.linux.amd64
+#   sudo mv sops-v3.8.1.linux.amd64 /usr/local/bin/sops
+#   sudo chmod +x /usr/local/bin/sops
+
+# cosign (container signing)
+#   # For ARM64/Raspberry Pi:
+#   wget https://github.com/sigstore/cosign/releases/download/v2.2.2/cosign-linux-arm64
+#   sudo mv cosign-linux-arm64 /usr/local/bin/cosign
+#   sudo chmod +x /usr/local/bin/cosign
+#   # For x86_64:
+#   wget https://github.com/sigstore/cosign/releases/download/v2.2.2/cosign-linux-amd64
+#   sudo mv cosign-linux-amd64 /usr/local/bin/cosign
+#   sudo chmod +x /usr/local/bin/cosign
+
 # starship (cross-shell prompt)
 #   curl -sS https://starship.rs/install.sh | sh
 
