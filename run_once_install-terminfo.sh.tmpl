@@ -1,0 +1,11 @@
+{{ if ne .chezmoi.os "darwin" -}}
+#!/bin/bash
+
+# Install Ghostty terminfo for proper terminal support
+if [ -f "$HOME/.config/terminfo/xterm-ghostty.terminfo" ]; then
+    tic -x "$HOME/.config/terminfo/xterm-ghostty.terminfo"
+    echo "✅ Ghostty terminfo installed"
+else
+    echo "⚠️  Ghostty terminfo file not found, skipping"
+fi
+{{ end -}}
