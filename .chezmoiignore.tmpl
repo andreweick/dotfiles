@@ -26,26 +26,13 @@ setup-age-key.sh
 {{/* --- Conditional Ignores --- */}}
 {{/*
 This block is only active if the final decrypted age key does NOT exist at its
-destination. We match against the TARGET path of the secrets file.
+destination. When there's no key, all .age files are automatically ignored.
 */}}
 {{- $keyPath := joinPath .chezmoi.homeDir ".config" "age" "key.txt" -}}
 {{- if not (stat $keyPath) -}}
 
-# The age key is not present, so ignore all encrypted files by their TARGET paths.
-# This prevents chezmoi from failing when trying to decrypt files without the key.
-.config/private-files/
-.config/rclone/secrets.conf
-.config/cosign/cosign.key
-.ssh/yubi/id_red_yubi_1_sk
-.ssh/yubi/id_red_yubi_1_sk.pub
-.ssh/yubi/id_red_yubi_1_sk_resident
-.ssh/yubi/id_red_yubi_1_sk_resident.pub
-.ssh/yubi/id_red_yubi_2_sk
-.ssh/yubi/id_red_yubi_2_sk.pub
-.ssh/yubi/id_red_yubi_2_sk_resident
-.ssh/yubi/id_red_yubi_2_sk_resident.pub
-.config/age/master_key_passphrase
-.config/age/master_key_ssh
+# When age key is not present, ignore ALL encrypted .age files
+**/*.age
 
 {{- end -}}
 

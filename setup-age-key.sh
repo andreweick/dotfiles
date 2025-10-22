@@ -41,9 +41,10 @@ if [ -f "${KEY_DESTINATION}" ]; then
     esac
 fi
 
-# 2. Ensure the destination directory exists.
+# 2. Ensure the destination directory exists with secure permissions.
 mkdir -p "$(dirname "${KEY_DESTINATION}")"
-chmod 600 ${HOME}/.config
+# Set secure permissions only on the age directory, not the entire .config
+chmod 700 "$(dirname "${KEY_DESTINATION}")"
 
 # --- Decryption Attempts ---
 DECRYPTION_SUCCESSFUL=false
