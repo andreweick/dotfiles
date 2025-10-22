@@ -1,0 +1,170 @@
+{{ if ne .chezmoi.os "darwin" -}}
+#!/usr/bin/env bash
+
+# --- Unified, Intelligent, Dual-Trigger apt Script ---
+
+# --- CONFIGURATION ---
+# Set the time period in seconds. Default is 7 days.
+readonly CHECK_INTERVAL_SECONDS=$((7 * 24 * 60 * 60))
+# Location for the timestamp file.
+readonly MARKER_FILE="$HOME/.config/aptfile/apt_last_run.txt"
+# Location of the aptfile itself.
+readonly APTFILE_PATH="$HOME/.config/aptfile/aptfile.txt"
+
+# --- INITIAL CHECKS ---
+if ! command -v apt &> /dev/null; then
+    echo "ℹ️  apt not found, skipping."
+    exit 0
+fi
+if [ ! -f "$APTFILE_PATH" ]; then
+    echo "ℹ️  aptfile.txt not found, skipping."
+    exit 0
+fi
+
+# --- DUAL-TRIGGER LOGIC ---
+# This block decides if the main script logic needs to run.
+
+# Default to not running. We'll set this to true if a condition is met.
+SHOULD_RUN=false
+RUN_REASON=""
+
+# CONDITION 0: Force update via environment variable
+APT_FORCE_LOWER=$(echo "$APT_FORCE_UPDATE" | tr '[:upper:]' '[:lower:]')
+if [ "$APT_FORCE_LOWER" = "1" ] || [ "$APT_FORCE_LOWER" = "true" ] || [ "$APT_FORCE_LOWER" = "t" ]; then
+    SHOULD_RUN=true
+    RUN_REASON="Force update requested via APT_FORCE_UPDATE environment variable."
+fi
+
+# Helper function to get a file's modification time in seconds.
+get_mtime() {
+    date --reference="$1" +%s
+}
+
+# Always run if the timestamp marker file doesn't exist (i.e., first run).
+if [ ! -f "$MARKER_FILE" ]; then
+    SHOULD_RUN=true
+    RUN_REASON="First run, performing initial sync."
+else
+    # Get the modification times of the aptfile and the last run marker.
+    aptfile_mtime=$(get_mtime "$APTFILE_PATH")
+    last_run_mtime=$(get_mtime "$MARKER_FILE")
+
+    # CONDITION 1: Run if aptfile.txt has been changed since the last run.
+    if (( aptfile_mtime > last_run_mtime )); then
+        SHOULD_RUN=true
+        RUN_REASON="aptfile.txt has been modified, re-syncing."
+    fi
+
+    # CONDITION 2: Run if the weekly time limit has passed.
+    current_time=$(date +%s)
+    elapsed_seconds=$((current_time - last_run_mtime))
+    if (( elapsed_seconds > CHECK_INTERVAL_SECONDS )); then
+        SHOULD_RUN=true
+        # Use a more specific reason if the time check is what triggered it.
+        if [ -z "$RUN_REASON" ]; then
+            RUN_REASON="Periodic weekly check is due."
+        fi
+    fi
+fi
+
+# --- EXECUTION ---
+# Based on the logic above, either run the full script or skip.
+
+if [ "$SHOULD_RUN" = true ]; then
+    echo "⌛ $RUN_REASON"
+
+    # --- CORE SCRIPT ---
+    echo "📦 Syncing packages from aptfile.txt..."
+
+    # Update package lists
+    sudo apt update -qq
+
+    # Read aptfile and install packages (skip comments and empty lines)
+    while IFS= read -r line || [ -n "$line" ]; do
+        # Skip comments and empty lines
+        if [[ "$line" =~ ^[[:space:]]*# ]] || [[ -z "$line" ]]; then
+            continue
+        fi
+
+        # Install the package if not already installed
+        pkg=$(echo "$line" | xargs)  # Trim whitespace
+        if ! dpkg -l "$pkg" 2>/dev/null | grep -q "^ii"; then
+            echo "  Installing $pkg..."
+            sudo apt install -y -qq "$pkg"
+        fi
+    done < "$APTFILE_PATH"
+
+    echo "🔎 Checking for manually installed packages not in your aptfile.txt..."
+
+    # Get list of manually installed packages
+    MANUAL_PACKAGES=$(apt-mark showmanual | sort)
+
+    # Get list of packages in aptfile (excluding comments)
+    APTFILE_PACKAGES=$(grep -v "^[[:space:]]*#" "$APTFILE_PATH" | grep -v "^[[:space:]]*$" | xargs -n1 | sort)
+
+    # Find packages that are manually installed but not in aptfile
+    EXTRANEOUS_PACKAGES=$(comm -23 <(echo "$MANUAL_PACKAGES") <(echo "$APTFILE_PACKAGES"))
+
+    if [ -n "$EXTRANEOUS_PACKAGES" ]; then
+        echo
+        echo "❗️ Found packages installed that are not in your aptfile.txt:"
+        echo "--------------------------------------------------"
+        echo "$EXTRANEOUS_PACKAGES"
+        echo "--------------------------------------------------"
+
+        if [ -t 0 ]; then # Interactive check
+            echo
+            echo "Choose an action:"
+            echo "  [A]dd these packages to aptfile.txt"
+            echo "  [R]emove these packages (warning: may break dependencies)"
+            echo "  [S]kip cleanup, but reset the timer"
+            echo "  [X] Abort 'chezmoi apply'. Timer will NOT be reset"
+            read -p "Your choice? (A/R/S/X) " -n 1 -r REPLY
+            echo
+            REPLY_LOWER=$(echo "$REPLY" | tr '[:upper:]' '[:lower:]')
+            case "$REPLY_LOWER" in
+              a)
+                echo "📝 Adding packages to aptfile.txt..."
+                echo "$EXTRANEOUS_PACKAGES" | while read -r pkg; do
+                    if [ -n "$pkg" ]; then
+                        echo "$pkg" >> "$APTFILE_PATH"
+                    fi
+                done
+                echo "✅ Packages added to aptfile.txt"
+                ;;
+              r)
+                echo "🗑️  Removing unlisted packages..."
+                echo "$EXTRANEOUS_PACKAGES" | xargs -r sudo apt remove -y
+                echo "✅ Cleanup complete."
+                ;;
+              s)
+                echo "ℹ️  Skipping cleanup as requested."
+                ;;
+              x)
+                echo "🛑 Aborting entire 'chezmoi apply' process."
+                exit 1
+                ;;
+              *)
+                echo "🛑 Invalid choice. Aborting."
+                exit 1
+                ;;
+            esac
+        else # Non-interactive mode
+            echo
+            echo "ℹ️  Running in unattended mode. Defaulting to skipping cleanup."
+        fi
+    else
+        echo "✅ Your system is in sync with your aptfile.txt."
+    fi
+
+    # --- On success, update the timestamp to reset the timer ---
+    echo "⏲️  Resetting the periodic timer."
+    mkdir -p "$(dirname "$MARKER_FILE")"
+    touch "$MARKER_FILE"
+
+    echo "🎉 apt check complete."
+else
+    echo "ℹ️  Skipping apt check (up-to-date and last run was recent)."
+    exit 0
+fi
+{{ end -}}

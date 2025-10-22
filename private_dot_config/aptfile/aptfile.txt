@@ -1,0 +1,84 @@
+# APT Package List
+# This file lists packages to install via apt on Linux systems.
+# Lines starting with # are comments and will be skipped.
+
+# --- Direct apt packages ---
+age
+sops
+ripgrep
+fzf
+nodejs
+hugo
+rclone
+zoxide
+kubectl
+
+# --- Need to add repos first ---
+# gh (GitHub CLI)
+#   sudo apt-key adv --keyserver keyserver.ubuntu.com --recv-key C99B11DEB97541F0
+#   sudo apt-add-repository https://cli.github.com/packages
+#   sudo apt update
+#   sudo apt install gh
+
+# cosign
+#   wget https://github.com/sigstore/cosign/releases/download/v2.2.2/cosign_2.2.2_amd64.deb
+#   sudo dpkg -i cosign_2.2.2_amd64.deb
+
+# flux (FluxCD)
+#   curl -s https://fluxcd.io/install.sh | sudo bash
+
+# --- Need manual/script installation ---
+# starship (cross-shell prompt)
+#   curl -sS https://starship.rs/install.sh | sh
+
+# just (command runner)
+#   # For ARM64/Raspberry Pi:
+#   wget https://github.com/casey/just/releases/download/1.16.0/just-1.16.0-aarch64-unknown-linux-musl.tar.gz
+#   tar xf just-*.tar.gz && sudo mv just /usr/local/bin/
+#   # For x86_64:
+#   wget https://github.com/casey/just/releases/download/1.16.0/just-1.16.0-x86_64-unknown-linux-musl.tar.gz
+#   tar xf just-*.tar.gz && sudo mv just /usr/local/bin/
+
+# atuin (shell history)
+#   curl --proto '=https' --tlsv1.2 -sSf https://sh.atuin.sh | sh
+
+# gum (glamorous shell scripts)
+#   # For ARM64/Raspberry Pi:
+#   wget https://github.com/charmbracelet/gum/releases/download/v0.13.0/gum_0.13.0_linux_arm64.tar.gz
+#   tar xf gum_*.tar.gz && sudo mv gum /usr/local/bin/
+#   # For x86_64:
+#   wget https://github.com/charmbracelet/gum/releases/download/v0.13.0/gum_0.13.0_linux_amd64.tar.gz
+#   tar xf gum_*.tar.gz && sudo mv gum /usr/local/bin/
+
+# dust (du alternative)
+#   # For ARM64/Raspberry Pi:
+#   wget https://github.com/bootandy/dust/releases/download/v0.8.6/dust-v0.8.6-aarch64-unknown-linux-gnu.tar.gz
+#   tar xf dust-*.tar.gz && sudo mv dust-*/dust /usr/local/bin/
+#   # For x86_64:
+#   wget https://github.com/bootandy/dust/releases/download/v0.8.6/dust-v0.8.6-x86_64-unknown-linux-gnu.tar.gz
+#   tar xf dust-*.tar.gz && sudo mv dust-*/dust /usr/local/bin/
+
+# jj (jujutsu version control)
+#   # Requires compilation from source or download from releases
+#   wget https://github.com/martinvonz/jj/releases/download/v0.13.0/jj-v0.13.0-x86_64-unknown-linux-musl.tar.gz
+#   tar xf jj-*.tar.gz && sudo mv jj /usr/local/bin/
+
+# litestream (SQLite replication)
+#   wget https://github.com/benbjohnson/litestream/releases/download/v0.3.13/litestream-v0.3.13-linux-arm64.tar.gz
+#   tar xf litestream-*.tar.gz && sudo mv litestream /usr/local/bin/
+
+# talosctl (Talos Kubernetes)
+#   # For ARM64:
+#   curl -sL https://talos.dev/install | sh -s -- --arch arm64
+#   # For x86_64:
+#   curl -sL https://talos.dev/install | sh
+
+# flyctl (Fly.io CLI)
+#   curl -L https://fly.io/install.sh | sh
+
+# tailwindcss (install via npm after nodejs)
+#   npm install -g tailwindcss
+
+# --- Not applicable on Linux ---
+# aerospace (macOS window manager)
+# chezmoi (skip - already installed)
