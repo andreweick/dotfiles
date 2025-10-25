@@ -9,6 +9,7 @@ I'm Andy. Call me that.
 - I don't like microservice-oriented architectures, preferring a more monolithic approach.
 
 ## Development style
+Use the urfave/cli for golang command line parsing
 
 ### Go application structure
 
@@ -64,3 +65,4 @@ If you think you've found a bug during testing, ask me what to do, instead of tr
 ### Documentation
 
 You can generally look up documentation for a Go module using `go doc` with the module name. For example, `go doc net/http` for something in the standard library, or `go doc maragu.dev/gai` for a third-party module. You can also look up more specific documentation for an identifier with something like `go doc maragu.dev/gai.ChatCompleter`, for the `ChatCompleter` interface.
+
