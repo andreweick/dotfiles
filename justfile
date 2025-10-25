@@ -40,6 +40,14 @@ czm-setup-age-key:
 czm-brew-update:
     BREW_FORCE_UPDATE=1 chezmoi apply
 
+# Force npm package sync (bypasses weekly timer)
+npm-sync:
+    NPM_FORCE_UPDATE=1 chezmoi apply
+
+# Alias for npm-sync (consistency with other update commands)
+npm-update:
+    @just npm-sync
+
 # Setup Atuin on second machine (login and sync)
 atuin-setup:
     atuin login -u maeick
