@@ -8,6 +8,9 @@
   signingkey = ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIAJldmPLBuDgtd+95XfPdncBYpxWfcXLaCX7lwM5GLCq andy-anywhere@eick.com
 {{ end }}
 
+[fetch]
+  prune = true
+
 # If I want to use the key from my SSH agent to sign, use the following line
 # N.B., this only works localy, not when the agent is fowarded
 # signingkey = SHA256:RLFKL0qVB1VWB7XC2qLlRYOlz7r9bJQAHabEa2kEhoA
