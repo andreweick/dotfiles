@@ -1,0 +1,19 @@
+# npm global packages
+#
+# This file lists npm packages to be installed globally.
+# One package per line. Lines starting with # are comments.
+#
+# The run_always_after_npm-interactive-cleanup.sh script will:
+# - Install packages from this list automatically (weekly or on file changes)
+# - Detect and optionally remove packages not in this list
+#
+# Common packages:
+# @angular/cli
+# typescript
+# prettier
+# eslint
+# nodemon
+# pm2
+# serve
+@anthropic-ai/claude-code
+corepack
