@@ -73,7 +73,7 @@ media-check:
       --checkers 8 --stats-one-line
 
 # Scan all repositories under ~/code and display their status (uncommitted, unpushed, unpulled)
-code-status SHOW_ALL="":
+code-git-status SHOW_ALL="":
     #!/usr/bin/env bash
     set -euo pipefail
 
@@ -175,3 +175,117 @@ code-status SHOW_ALL="":
     echo "$(gum style --foreground 226 "Unpushed repos:  ") $UNPUSHED_COUNT"
     echo "$(gum style --foreground 39 "Unpulled repos:  ") $UNPULLED_COUNT"
     echo "$(gum style --foreground 46 "Clean repos:     ") $CLEAN_COUNT"
+
+# Clean up local branches whose remote tracking branch has been deleted
+code-git-cleanup:
+    #!/usr/bin/env bash
+    set -euo pipefail
+
+    # Temporary file to collect branches
+    BRANCHES_FILE=$(mktemp)
+    trap "rm -f $BRANCHES_FILE" EXIT
+
+    gum style --foreground 212 --bold "Scanning repositories for orphaned branches..."
+    echo ""
+
+    TOTAL_ORPHANED=0
+
+    # Find all git repositories
+    while IFS= read -r -d '' repo; do
+        repo_dir=$(dirname "$repo")
+        repo_name=$(basename "$repo_dir")
+
+        cd "$repo_dir"
+
+        # Find branches where remote tracking branch is gone
+        while IFS= read -r line; do
+            if [[ -n "$line" ]]; then
+                branch=$(echo "$line" | awk '{print $1}')
+                echo "$repo_name|$branch" >> "$BRANCHES_FILE"
+                ((TOTAL_ORPHANED++))
+            fi
+        done < <(git branch -vv | grep ': gone]' || true)
+
+    done < <(find ~/code -maxdepth 2 -type d -name .git -print0)
+
+    if [[ $TOTAL_ORPHANED -eq 0 ]]; then
+        gum style --foreground 46 --bold "✨ No orphaned branches found!"
+        exit 0
+    fi
+
+    # Display message
+    gum style --foreground 196 --bold "Found $TOTAL_ORPHANED orphaned branch(es):"
+    gum style --foreground 39 "These branches have been found that do not have remote branches"
+    echo ""
+
+    # Create list of branches in repo/branch format
+    BRANCHES_LIST=$(mktemp)
+    trap "rm -f $BRANCHES_LIST" EXIT
+
+    while IFS='|' read -r repo_name branch; do
+        echo "$repo_name/$branch"
+    done < "$BRANCHES_FILE" > "$BRANCHES_LIST"
+
+    # Create chooser file with branches and action buttons
+    CHOOSER_FILE=$(mktemp)
+    cat "$BRANCHES_LIST" > "$CHOOSER_FILE"
+    echo "✅ Proceed" >> "$CHOOSER_FILE"
+    echo "❌ Cancel" >> "$CHOOSER_FILE"
+
+    # Build --selected arguments (all branches + Proceed button pre-selected)
+    SELECTED_ARGS=()
+    while IFS= read -r branch_entry; do
+        SELECTED_ARGS+=("--selected=$branch_entry")
+    done < "$BRANCHES_LIST"
+    SELECTED_ARGS+=("--selected=✅ Proceed")
+
+    # Let user review and modify selection
+    gum style --foreground 39 "Press Enter to proceed, or Space to modify selection:"
+    SELECTED=$(gum choose --no-limit --height 15 "${SELECTED_ARGS[@]}" < "$CHOOSER_FILE" || true)
+
+    if [[ -z "$SELECTED" ]] || echo "$SELECTED" | grep -q "❌ Cancel"; then
+        gum style --foreground 226 "Cancelled - no branches were deleted"
+        exit 0
+    fi
+
+    # Check if Proceed was selected
+    if ! echo "$SELECTED" | grep -q "✅ Proceed"; then
+        gum style --foreground 226 "Cancelled - no branches were deleted (must select Proceed)"
+        exit 0
+    fi
+
+    DELETED_COUNT=0
+    FAILED_COUNT=0
+
+    # Delete selected branches (excluding the Proceed/Cancel buttons)
+    while IFS= read -r selected_item; do
+        [[ -z "$selected_item" ]] && continue
+        [[ "$selected_item" == "✅ Proceed" ]] && continue
+        [[ "$selected_item" == "❌ Cancel" ]] && continue
+
+        # Parse repo_name/branch format
+        repo_name=$(echo "$selected_item" | cut -d'/' -f1)
+        branch=$(echo "$selected_item" | cut -d'/' -f2-)
+
+        repo_dir=$(find ~/code -maxdepth 1 -type d -name "$repo_name" | head -1)
+        if [[ -n "$repo_dir" ]]; then
+            cd "$repo_dir"
+            if git branch -d "$branch" 2>/dev/null; then
+                gum style --foreground 46 "✓ Deleted $repo_name/$branch"
+                ((DELETED_COUNT++))
+            elif git branch -D "$branch" 2>/dev/null; then
+                gum style --foreground 226 "⚠ Force deleted $repo_name/$branch (had unmerged changes)"
+                ((DELETED_COUNT++))
+            else
+                gum style --foreground 196 "✗ Failed to delete $repo_name/$branch"
+                ((FAILED_COUNT++))
+            fi
+        fi
+    done <<< "$SELECTED"
+
+    echo ""
+    gum style --foreground 212 --bold --border double --border-foreground 212 --padding "0 2" "Summary"
+    echo "$(gum style --foreground 46 "Deleted:  ") $DELETED_COUNT"
+    if [[ $FAILED_COUNT -gt 0 ]]; then
+        echo "$(gum style --foreground 196 "Failed:   ") $FAILED_COUNT"
+    fi
