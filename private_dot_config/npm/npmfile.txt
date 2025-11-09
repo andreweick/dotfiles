@@ -15,5 +15,6 @@
 # nodemon
 # pm2
 # serve
-@anthropic-ai/claude-code
 corepack
+@anthropic-ai/claude-code
+@fission-ai/openspec@latest
