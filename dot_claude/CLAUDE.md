@@ -36,7 +36,7 @@ Since tests are shuffled, don't rely on test order, even for subtests.
 
 Every time the `postgrestest.NewDatabase(t)`/`sqlitetest.NewDatabase(t)` test helpers are called, the database is in a clean state (no leftovers from other tests etc.).
 
-I always want a README.md and a justfile when you create a project.  Use a lowercase 'j' in justfile.  Don't add fmt or lint targets in justfiles.  
+I always want a README.md and a justfile when you create a project.  Use a lowercase 'j' in justfile.  Don't add fmt or lint targets in justfiles. When creating a justfile, always add the "set fallback" to recurse recipes
 
 Always add a build target and a 'run' target that will build and run the app, passing as command line switches anything I pass in on the 'just' line.  The run target relies on the build target and then passes all the input to the build artifact.  
 
