@@ -14,7 +14,7 @@ brew "gh"
 brew "hugo"
 brew "rclone"
 brew "starship"
-brew "node"
+brew "node@22", link: :overwrite
 brew "just"
 brew "tailwindcss"
 brew "zoxide"
