@@ -1,5 +1,3 @@
-tap "nikitabobko/tap"
-cask "nikitabobko/tap/aerospace"
 tap "benbjohnson/litestream"
 tap "siderolabs/tap"
 tap "fluxcd/tap"
