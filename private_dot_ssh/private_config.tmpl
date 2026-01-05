@@ -67,6 +67,9 @@ Include ~/.ssh/config.d/*.conf
 # -----------------------------------------------------------------------------
 
 Host *
+  UserKnownHostsFile ~/.ssh/known_hosts_ca ~/.ssh/known_hosts
+  IdentityFile ~/.ssh/andy-anywhere
+  User maeick
   IdentitiesOnly yes
   ForwardAgent no
   StrictHostKeyChecking ask
