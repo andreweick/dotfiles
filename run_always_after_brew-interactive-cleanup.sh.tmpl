@@ -215,6 +215,7 @@ if [ "$SHOULD_RUN" = true ]; then
     echo "🎉 Homebrew check complete."
 else
     echo "ℹ️  Skipping Homebrew check (up-to-date and last run was recent)."
+    echo "   To force an update: BREW_FORCE_UPDATE=1 chezmoi apply"
     exit 0
 fi
 {{ end -}}
