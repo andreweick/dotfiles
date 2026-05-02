@@ -1,4 +1,4 @@
-export PATH=$HOME/.local/bin/:$HOME/bin:/usr/local/bin:/opt/homebrew/bin:/usr/local/go/bin:$PATH
+export PATH=$HOME/.local/bin/:$HOME/bin:/usr/local/bin:/opt/homebrew/bin:/usr/local/go/bin:$HOME/.cargo/bin:$PATH
 
 # Set XDG_CONFIG_HOME for all the config files to live
 export XDG_CONFIG_HOME="$HOME/.config"
@@ -36,6 +36,11 @@ fi
 if command -v starship &> /dev/null
 then
   eval "$(starship init zsh)"
+fi
+
+# Generate and load rustup completions
+if [ -f "$HOME/.cargo/bin/rustup" ]; then
+    source <("$HOME/.cargo/bin/rustup" completions zsh)
 fi
 
 if command -v atuin &> /dev/null
