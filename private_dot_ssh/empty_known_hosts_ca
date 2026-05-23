@@ -2,7 +2,5 @@
 @cert-authority *.eick.com ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAINPKvp+nESN34ocaJtGdaSwxYZZi2BqkuIY/lks5Obam
 @cert-authority *.organmorgan.com ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAINPKvp+nESN34ocaJtGdaSwxYZZi2BqkuIY/lks5Obam
 @cert-authority *.cobblestreets.com ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAINPKvp+nESN34ocaJtGdaSwxYZZi2BqkuIY/lks5Obam
-@cert-authority 10.200.80.51 ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAINPKvp+nESN34ocaJtGdaSwxYZZi2BqkuIY/lks5Obam
-@cert-authority 10.200.80.52 ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAINPKvp+nESN34ocaJtGdaSwxYZZi2BqkuIY/lks5Obam
-@cert-authority 10.200.80.53 ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAINPKvp+nESN34ocaJtGdaSwxYZZi2BqkuIY/lks5Obam
-@cert-authority 10.200.80.54 ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAINPKvp+nESN34ocaJtGdaSwxYZZi2BqkuIY/lks5Obam
+@cert-authority *.inkandharpoon.com ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAINPKvp+nESN34ocaJtGdaSwxYZZi2BqkuIY/lks5Obam
+@cert-authority 10.* ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIIUcQtXfGr8wN0CNJ6Bkm917LDRL3gQhj015+HiA2Z+F bildad-ca bildad-ca
