@@ -82,6 +82,18 @@ if [ "$SHOULD_RUN" = true ]; then
     echo "⌛ $RUN_REASON"
 
     # --- CORE INTERACTIVE SCRIPT ---
+    # Trust the third-party taps listed in the brewfile. Trust is machine-local
+    # state (~/.config/homebrew/trust.json), so it must be re-established on every
+    # machine; doing it here keeps it reproducible and stops brew from refusing to
+    # load formulae like litestream/omnictl. Idempotent and safe to run every time.
+    TAPS=$(grep -E '^tap "' "$BREWFILE_PATH" | sed -E 's/^tap "([^"]+)".*/\1/')
+    if [ -n "$TAPS" ]; then
+        echo "🔐 Trusting third-party taps from brewfile.txt..."
+        echo "$TAPS" | while read -r t; do
+            [ -n "$t" ] && brew trust --tap "$t" >/dev/null 2>&1 || true
+        done
+    fi
+
     echo "📦 Syncing packages from brewfile.txt..."
     brew bundle install --file "$BREWFILE_PATH" --quiet
 
