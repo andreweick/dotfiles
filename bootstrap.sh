@@ -19,6 +19,11 @@
 #                  (key present -> all secrets decrypt).
 #        public -> chezmoi init --apply with no key (encrypted files skipped via
 #                  .chezmoiignore.tmpl; no secrets touched).
+#      With no interactive terminal (Codespaces, cloud-init, Docker, CI, or the
+#      one-liner pasted into automation) the prompt is skipped and PUBLIC is
+#      used — full mode needs a tty for the passphrase, and secrets shouldn't
+#      land on ephemeral machines anyway. (For Codespaces et al., install.sh
+#      outranks bootstrap.sh and is the real entry point; this is a backstop.)
 #
 # Environment overrides:
 #   GITHUB_USER     chezmoi source + raw host (default: andreweick)
@@ -43,9 +48,26 @@ export PATH="$BIN_DIR:$PATH"
 note() { printf '%s\n' "$*"; }
 die()  { printf '❌ %s\n' "$*" >&2; exit 1; }
 
+# Can we actually open the controlling terminal? Note: `[ -r /dev/tty ]` is NOT
+# a valid test — the device node is world-readable (crw-rw-rw-) even when there
+# is no controlling tty, so access(2) always succeeds. Only an open() reveals
+# the truth (it fails with ENXIO when headless).
+have_tty() { ( : < /dev/tty ) 2>/dev/null; }
+
 # Prompts must read from the real terminal: with `sh -c "$(curl ...)"` stdin is
 # the tty, but read from /dev/tty explicitly so `curl | sh` also behaves.
-if [ -r /dev/tty ]; then TTY=/dev/tty; else TTY=/dev/stdin; fi
+if have_tty; then TTY=/dev/tty; else TTY=/dev/stdin; fi
+
+# Is a human at a terminal we can prompt? False under any headless provisioning
+# (Codespaces, Gitpod, dev containers, cloud-init, Docker builds, CI, etc.), so
+# the mode prompt below falls back to `public` instead of hanging on a `read`.
+# Known automation env vars force non-interactive even if a pseudo-tty exists.
+is_interactive() {
+    [ -n "${CODESPACES:-}${CI:-}${GITPOD_WORKSPACE_ID:-}${REMOTE_CONTAINERS:-}${DEVCONTAINER:-}" ] && return 1
+    [ -t 0 ] && return 0
+    have_tty && return 0
+    return 1
+}
 
 command -v curl >/dev/null 2>&1 || die "curl is required."
 
@@ -61,16 +83,26 @@ CHEZMOI="$(command -v chezmoi || printf '%s' "$BIN_DIR/chezmoi")"
 case "$BOOTSTRAP_MODE" in
     full|public) ;;
     "")
-        note ""
-        note "How do you want to set up this machine?"
-        note "  [f] full   — decrypt private keys & secrets (asks for master password)"
-        note "  [p] public — install public dotfiles only, no secrets"
-        printf "Choice ([f]/p): "
-        read -r mode_ans < "$TTY"
-        case "$mode_ans" in
-            [pP]|[pP][uU][bB][lL][iI][cC]) BOOTSTRAP_MODE=public ;;
-            *)                             BOOTSTRAP_MODE=full ;;
-        esac
+        if ! is_interactive; then
+            # Headless (VM/container/CI provisioning, or an accidental paste of
+            # the curl one-liner into automation). Full mode is impossible here
+            # anyway — age won't read a passphrase without a tty — and secrets
+            # shouldn't land on ephemeral machines. Fail safe to public.
+            BOOTSTRAP_MODE=public
+            note "› No interactive terminal detected — defaulting to public (no secrets)."
+            note "  Set BOOTSTRAP_MODE=full and run from a terminal to decrypt secrets."
+        else
+            note ""
+            note "How do you want to set up this machine?"
+            note "  [f] full   — decrypt private keys & secrets (asks for master password)"
+            note "  [p] public — install public dotfiles only, no secrets"
+            printf "Choice ([f]/p): "
+            read -r mode_ans < "$TTY"
+            case "$mode_ans" in
+                [pP]|[pP][uU][bB][lL][iI][cC]) BOOTSTRAP_MODE=public ;;
+                *)                             BOOTSTRAP_MODE=full ;;
+            esac
+        fi
         ;;
     *) die "Invalid BOOTSTRAP_MODE='$BOOTSTRAP_MODE' (use full or public)." ;;
 esac
