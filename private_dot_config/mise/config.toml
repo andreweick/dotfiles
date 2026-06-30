@@ -7,10 +7,10 @@
 # Apply / update:   mise install        (or: just mise-up, or chezmoi apply)
 # Add a tool:       mise use -g <tool>@latest   then commit this file
 #
-# NOTE: most names below are mise registry short names (backed by aqua/ubi).
-# A few tools without a registry entry are pinned to an explicit ubi backend
-# (ubi:owner/repo). If `mise install` ever can't resolve a short name, switch
-# that line to its ubi:owner/repo form.
+# NOTE: most names below are mise registry short names (backed by aqua/github).
+# A few tools without a registry entry are pinned to an explicit github backend
+# (github:owner/repo). If `mise install` ever can't resolve a short name, switch
+# that line to its github:owner/repo form.
 
 [tools]
 age        = "latest"
@@ -32,12 +32,12 @@ jj         = "latest"
 kubectl    = "latest"
 
 # Pinned to explicit backends (no short registry name, or name collisions)
-"ubi:superfly/flyctl"           = "latest"   # flyctl
-"ubi:tailwindlabs/tailwindcss"  = "latest"   # tailwindcss standalone CLI
-"ubi:PaulJuliusMartinez/jless"  = "latest"   # jless
-"ubi:benbjohnson/litestream"    = "latest"   # litestream
-"aqua:siderolabs/talos"         = "latest"   # talosctl
-"aqua:fluxcd/flux2"             = "latest"   # flux
+"github:superfly/flyctl"           = "latest"   # flyctl
+"github:tailwindlabs/tailwindcss"  = "latest"   # tailwindcss standalone CLI
+"github:PaulJuliusMartinez/jless"  = "latest"   # jless
+"github:benbjohnson/litestream"    = "latest"   # litestream
+"aqua:siderolabs/talos"            = "latest"   # talosctl
+"aqua:fluxcd/flux2"                = "latest"   # flux
 
 # omnictl ships inside the siderolabs/omni releases as `omnictl-<os>-<arch>`.
-"ubi:siderolabs/omni[exe=omnictl]" = "latest"
+"github:siderolabs/omni[exe=omnictl]" = "latest"
