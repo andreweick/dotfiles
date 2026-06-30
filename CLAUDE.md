@@ -66,10 +66,8 @@ chezmoi apply
 
 ### Security Architecture
 - **Dual-tier encryption** using `age`:
-  - **Master key** encrypted two ways:
-    - SSH key-based (passwordless with SSH agent forwarding)
-    - Master password fallback (stored in 1Password)
-  - **All secrets** encrypted with master age key
+  - **Master key** encrypted with a master password (stored in 1Password)
+  - **All secrets** encrypted with the master age key
 - **Two-phase bootstrap**: Gracefully handles missing encryption keys
   - Phase 1: Non-encrypted files applied
   - Phase 2: After age key setup, encrypted files applied
@@ -88,19 +86,18 @@ chezmoi apply
 
 ### Key Scripts
 
-**`setup-age-key.sh`** (93 lines)
-- Bootstrap age decryption key on new machines
-- Method 1 (Primary): SSH key-based decryption (searches `~/.ssh` for available keys)
-- Method 2 (Fallback): Master password decryption
+**`setup-age-key.sh`**
+- Bootstrap the master age key on new machines (passphrase-only)
+- Decrypts `private_dot_config/private_age/master_key_passphrase.age` with the
+  master password (stored in 1Password)
 - Creates `~/.config/age/key.txt` with 0600 permissions
-- Only runs once; asks for confirmation if key already exists
+- Asks for confirmation if the key already exists
 
-**`generate-encrypted-keys.sh`** (150+ lines)
-- Maintain/rotate master encryption keys
-- Encrypts master key to ALL SSH public keys (filters out unsupported ECDSA)
-- Encrypts master key with passphrase
-- De-duplicates recipients
-- Asks before overwriting existing files
+**`generate-encrypted-keys.sh`**
+- Maintain/rotate the master encryption key
+- Re-encrypts `~/.config/age/key.txt` with a master password, writing
+  `private_dot_config/private_age/master_key_passphrase.age`
+- Asks before overwriting the existing file
 
 **`run_always_after_brew-interactive-cleanup.sh`** (200+ lines)
 - Smart Homebrew package synchronization daemon
@@ -198,27 +195,26 @@ dotfiles/
 - Cosign for container signing
 - Age encryption for secrets (22 encrypted files total)
 
-**Package Management**
-- Homebrew with 30+ packages
-  - Smart sync daemon (weekly + change detection)
-  - Interactive cleanup for extraneous packages
-- npm global packages
-  - List-based management via `npmfile.txt`
-  - Smart sync daemon (weekly + change detection)
-  - Interactive cleanup for extraneous packages
-  - Idempotent installation (`npm install -g`)
+**Package Management** (OS-specific, both with weekly + change-detection sync daemons)
+- **macOS — Homebrew** (`brewfile.txt`): `run_always_after_brew-interactive-cleanup.sh.tmpl`
+  (darwin-gated), with interactive cleanup of extraneous packages
+- **Linux — mise** (`~/.config/mise/config.toml`): installs CLI tools from
+  GitHub releases into `~/.local/bin` (no Homebrew, no sudo).
+  `run_always_after_mise-sync.sh.tmpl` runs `mise install` + `mise upgrade`
+- **Linux — apt base layer** (`aptfile.txt`): only the floor mise can't provide
+  (zsh, git, openssh-client, curl, ca-certificates, build-essential) via
+  `run_always_after_apt-sync.sh.tmpl`
 
-**Key Tools in Brewfile**
-- Core: age, sops, chezmoi, cosign, atuin, starship
-- Build: node, hugo, tailwindcss, jj, litestream
-- Cloud: rclone, flyctl, gh
-- Utilities: ripgrep, dust, fzf, gum, zoxide, just
-- Desktop: aerospace (window manager)
+**Key Tools** (brewfile.txt on macOS, mirrored in mise config.toml on Linux)
+- Core: age, sops, cosign, atuin, starship
+- Build: node, tailwindcss, jj, litestream
+- Cloud: rclone, flyctl, gh, kubectl, flux, talosctl, omnictl
+- Utilities: ripgrep, dust, fzf, gum, zoxide, just, bat, jless
 
 ### Dynamic Shell Completions
 
-11 tools with auto-generated completions using `create_` prefix:
-- atuin, chezmoi, cosign, flyctl, gh, gum, hugo, jj, just, podman, rclone
+Auto-generated completions using `create_` prefix:
+- atuin, chezmoi, cosign, flyctl, gh, gum, jj, just, podman, rclone
 - Only created if tool is installed (uses `lookPath` check)
 - Completion scripts generated via `output` function
 

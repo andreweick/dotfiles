@@ -3,9 +3,9 @@
   not its source path in the repository.
 
   For example, the source file:
-    `private_dot_config/age/secret_key.txt.age-symmetric`
+    `private_dot_config/private_age/master_key_passphrase.age`
   has a destination (target) path of:
-    `.config/age/secret_key.txt.age-symmetric`
+    `.config/age/master_key_passphrase.age`
   Therefore, the destination path is what must be used in this file.
 */}}
 
@@ -16,12 +16,14 @@ install.sh
 generate-encrypted-keys.sh
 setup-age-key.sh
 
-# This is the symmetrically encrypted master key.
-# We ignore its TARGET path, not its source path.
-.config/age/secret_key.txt.age-symmetric
+# The passphrase-encrypted master key lives in the source tree only (it's read
+# by setup-age-key.sh during bootstrap). Never write it into $HOME.
+.config/age/master_key_passphrase.age
 
-# This is the timestamp file for the brewfile when it was last run (so I don't over run it).
+# Timestamp/marker files for the package-sync daemons (so they aren't managed).
 .config/brewfile/brew_last_run.txt
+.config/aptfile/apt_last_run.txt
+.config/mise/mise_last_run.txt
 
 {{/* --- Conditional Ignores --- */}}
 {{/*

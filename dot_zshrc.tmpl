@@ -11,9 +11,15 @@ fpath=(~/.zsh/completions $fpath)
 autoload -U compinit
 compinit
 
+# mise - tool/runtime version manager. On Linux it installs our CLI tools
+# (replacing Homebrew). Harmless no-op where mise isn't installed.
+if command -v mise &> /dev/null
+then
+  eval "$(mise activate zsh)"
+fi
+
 {{ if eq .chezmoi.os "linux" }}
   export EDITOR=nvim
-  alias db='distrobox enter boxkit --name boxkit -- zellij'
 {{ end }}
 # {{ if (eq .chezmoi.os "darwin") }}
 # Leave the comment line below due to a very annoying lmstudio behavior: https://github.com/lmstudio-ai/lmstudio-bug-tracker/issues/656
@@ -113,6 +119,7 @@ fi
 #   - Serial numbers updated below to match your actual YubiKeys
 # -----------------------------------------------------------------------------
 
+{{ if eq .chezmoi.os "darwin" -}}
 # Start ssh-agent if not already running
 if ! pgrep -u "$USER" ssh-agent > /dev/null; then
   eval "$(ssh-agent -s)"
@@ -168,3 +175,15 @@ if ! ssh-add -l 2>/dev/null | grep -q "cardno:" && ! is_key_added "$FALLBACK_KEY
   echo "💡 No YubiKey key available — adding fallback key"
   maybe_add_key "$FALLBACK_KEY"
 fi
+{{- else -}}
+# Linux (headless): no YubiKey/ykman. Just ensure an agent is running and load
+# the local fallback key if it's present. Quiet by design.
+if ! pgrep -u "$USER" ssh-agent > /dev/null; then
+  eval "$(ssh-agent -s)" > /dev/null
+fi
+
+FALLBACK_KEY="$HOME/.ssh/andy-anywhere"
+if [ -f "$FALLBACK_KEY" ] && ! ssh-add -l 2>/dev/null | grep -q "$(basename "$FALLBACK_KEY")"; then
+  ssh-add "$FALLBACK_KEY" 2>/dev/null
+fi
+{{- end }}
