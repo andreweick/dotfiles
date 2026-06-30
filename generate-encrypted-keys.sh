@@ -1,23 +1,21 @@
 #!/usr/bin/env sh
 #
-# FILENAME: generate_encrypted_keys.sh
+# FILENAME: generate-encrypted-keys.sh
 #
-# This helper script encrypts your master age private key in two ways:
-#   1. Encrypted to ALL SUPPORTED SSH public keys found in ~/.ssh.
-#   2. Encrypted with a symmetric master password.
+# This helper script encrypts your master age private key with a symmetric
+# master password, producing master_key_passphrase.age in the chezmoi source
+# tree. This is the file setup-age-key.sh uses to bootstrap new machines.
 #
 # It assumes the unencrypted key is located at ~/.config/age/key.txt.
-# It will check if the encrypted keys already exist and ask before overwriting.
+# It will check if the encrypted key already exists and ask before overwriting.
 
 set -e
 
 # --- Configuration ---
 # Assume the unencrypted private key is always at this location.
 PLAINTEXT_KEY_PATH="${HOME}/.config/age/key.txt"
-# Define the final destination for the generated keys inside the chezmoi source tree
-CHEZMOI_KEYS_DIR="$(chezmoi source-path)/private_dot_config/age"
-# Define locations to search for public keys
-SSH_DIR="${HOME}/.ssh"
+# Define the final destination for the generated key inside the chezmoi source tree
+CHEZMOI_KEYS_DIR="$(chezmoi source-path)/private_dot_config/private_age"
 
 # --- Helper Function ---
 # Asks the user for confirmation before overwriting an existing file.
@@ -57,44 +55,7 @@ echo "› Key found."
 mkdir -p "${CHEZMOI_KEYS_DIR}"
 
 echo ""
-# 2. Encrypt with all available SSH keys.
-if confirm_overwrite "${CHEZMOI_KEYS_DIR}/master_key_ssh.age"; then
-    echo "🔎 Searching for SSH public keys..."
-
-    # Create a temporary file to hold the clean list of recipients
-    RECIPIENTS_FILE=$(mktemp)
-
-    # Gather keys from all common locations into a temporary holding file
-    ALL_KEYS_TMP=$(mktemp)
-    find "${SSH_DIR}" -type f -name "*.pub" -exec cat {} + >> "${ALL_KEYS_TMP}" 2>/dev/null || true
-    [ -f "${SSH_DIR}/authorized_keys" ] && cat "${SSH_DIR}/authorized_keys" >> "${ALL_KEYS_TMP}"
-    [ -f "${SSH_DIR}/ignition" ] && cat "${SSH_DIR}/ignition" >> "${ALL_KEYS_TMP}"
-    [ -d "${SSH_DIR}/authorized_keys.d" ] && find "${SSH_DIR}/authorized_keys.d" -type f -exec cat {} + >> "${ALL_KEYS_TMP}" 2>/dev/null || true
-
-    # Filter out unsupported ecdsa keys, comments, and empty lines, then de-duplicate
-    grep -v "ecdsa-sha2-nistp256" "${ALL_KEYS_TMP}" | grep -v "^\s*#" | grep -v "^\s*$" | sort -u > "${RECIPIENTS_FILE}"
-    rm -f "${ALL_KEYS_TMP}"
-
-    if [ ! -s "${RECIPIENTS_FILE}" ]; then
-        echo "⚠️ WARNING: No SUPPORTED SSH public keys found. Skipping SSH-based encryption."
-    else
-        echo "› Preparing to encrypt to the following SUPPORTED SSH public key(s):"
-        # Print fingerprints for verification
-        while IFS= read -r key_line; do
-            echo "${key_line}" | ssh-keygen -lf /dev/stdin | sed 's/^/     /'
-        done < "${RECIPIENTS_FILE}"
-
-        # Use the cleaned recipients file to encrypt. This is the most reliable method.
-        age --encrypt --armor --recipients-file "${RECIPIENTS_FILE}" --output "${CHEZMOI_KEYS_DIR}/master_key_ssh.age" "${PLAINTEXT_KEY_PATH}"
-        echo "✅ Successfully created '${CHEZMOI_KEYS_DIR}/master_key_ssh.age'"
-    fi
-    # Clean up the final recipients file
-    rm -f "${RECIPIENTS_FILE}"
-fi
-
-
-echo ""
-# 3. Encrypt with a passphrase.
+# 2. Encrypt with a passphrase.
 if confirm_overwrite "${CHEZMOI_KEYS_DIR}/master_key_passphrase.age"; then
     echo "› Preparing to encrypt with a master password."
     echo "  The 'age' command will now prompt you to enter and confirm the password."

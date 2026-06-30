@@ -1,0 +1,91 @@
+{{ if ne .chezmoi.os "darwin" -}}
+#!/usr/bin/env bash
+
+# --- Unified, Intelligent, Dual-Trigger mise Script ---
+# Linux replacement for the Homebrew sync daemon: keeps the tools in
+# ~/.config/mise/config.toml installed and up to date.
+
+# --- CONFIGURATION ---
+# Set the time period in seconds. Default is 7 days.
+readonly CHECK_INTERVAL_SECONDS=$((7 * 24 * 60 * 60))
+# Location for the timestamp file.
+readonly MARKER_FILE="$HOME/.config/mise/mise_last_run.txt"
+# Location of the mise config itself.
+readonly MISE_CONFIG_PATH="$HOME/.config/mise/config.toml"
+
+# --- INITIAL CHECKS ---
+if ! command -v mise &> /dev/null; then
+    echo "ℹ️  mise not found, skipping."
+    exit 0
+fi
+if [ ! -f "$MISE_CONFIG_PATH" ]; then
+    echo "ℹ️  mise config.toml not found, skipping."
+    exit 0
+fi
+
+# --- DUAL-TRIGGER LOGIC ---
+# This block decides if the main script logic needs to run.
+
+SHOULD_RUN=false
+RUN_REASON=""
+
+# CONDITION 0: Force update via environment variable
+MISE_FORCE_LOWER=$(echo "$MISE_FORCE_UPDATE" | tr '[:upper:]' '[:lower:]')
+if [ "$MISE_FORCE_LOWER" = "1" ] || [ "$MISE_FORCE_LOWER" = "true" ] || [ "$MISE_FORCE_LOWER" = "t" ]; then
+    SHOULD_RUN=true
+    RUN_REASON="Force update requested via MISE_FORCE_UPDATE environment variable."
+fi
+
+# Helper function to get a file's modification time in seconds.
+get_mtime() {
+    date --reference="$1" +%s
+}
+
+# Always run if the timestamp marker file doesn't exist (i.e., first run).
+if [ ! -f "$MARKER_FILE" ]; then
+    SHOULD_RUN=true
+    RUN_REASON="First run, performing initial sync."
+else
+    config_mtime=$(get_mtime "$MISE_CONFIG_PATH")
+    last_run_mtime=$(get_mtime "$MARKER_FILE")
+
+    # CONDITION 1: Run if config.toml has been changed since the last run.
+    if (( config_mtime > last_run_mtime )); then
+        SHOULD_RUN=true
+        RUN_REASON="mise config.toml has been modified, re-syncing."
+    fi
+
+    # CONDITION 2: Run if the weekly time limit has passed.
+    current_time=$(date +%s)
+    elapsed_seconds=$((current_time - last_run_mtime))
+    if (( elapsed_seconds > CHECK_INTERVAL_SECONDS )); then
+        SHOULD_RUN=true
+        if [ -z "$RUN_REASON" ]; then
+            RUN_REASON="Periodic weekly check is due."
+        fi
+    fi
+fi
+
+# --- EXECUTION ---
+if [ "$SHOULD_RUN" = true ]; then
+    echo "⌛ $RUN_REASON"
+
+    echo "📦 Installing tools from mise config.toml..."
+    # Idempotent: installs anything missing at the pinned versions.
+    mise install
+
+    # Upgrade tools tracking "latest" to the newest available release.
+    echo "⬆️  Upgrading tools to latest..."
+    mise upgrade
+
+    echo "⏲️  Resetting the periodic timer."
+    mkdir -p "$(dirname "$MARKER_FILE")"
+    touch "$MARKER_FILE"
+
+    echo "🎉 mise check complete."
+else
+    echo "ℹ️  Skipping mise check (up-to-date and last run was recent)."
+    echo "   To force an update: MISE_FORCE_UPDATE=1 chezmoi apply"
+    exit 0
+fi
+{{ end -}}

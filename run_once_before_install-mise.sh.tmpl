@@ -1,0 +1,25 @@
+{{ if ne .chezmoi.os "darwin" -}}
+#!/usr/bin/env bash
+#
+# Install mise (https://mise.jdx.dev) on Linux.
+#
+# mise is our cross-distro replacement for Homebrew on Linux: it installs the
+# CLI tools listed in ~/.config/mise/config.toml from GitHub releases into
+# ~/.local/bin (already first on PATH), no sudo required.
+#
+# This is a run_once_before_ script so mise exists before the rest of the
+# config (including ~/.config/mise/config.toml) is applied.
+
+set -eu
+
+if command -v mise >/dev/null 2>&1; then
+    echo "✅ mise already installed ($(command -v mise))"
+    exit 0
+fi
+
+echo "📦 Installing mise..."
+curl -fsSL https://mise.run | sh
+
+echo "✅ mise installed to ~/.local/bin/mise"
+echo "   Tools will be installed on the next 'chezmoi apply' (mise-sync)."
+{{ end -}}
