@@ -27,6 +27,15 @@ setup-age-key.sh
 .config/mise/mise_last_run.txt
 
 {{/* --- Conditional Ignores --- */}}
+
+{{/*
+Fish shell config is Linux-only for now (zsh remains the shell on macOS).
+Ignore the whole fish config tree on any non-Linux OS.
+*/}}
+{{- if ne .chezmoi.os "linux" }}
+.config/fish
+{{- end }}
+
 {{/*
 This block is only active if the final decrypted age key does NOT exist at its
 destination. When there's no key, all .age files are automatically ignored.

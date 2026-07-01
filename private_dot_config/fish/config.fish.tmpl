@@ -1,0 +1,15 @@
+{{- /*
+  Fish shell config (Linux only — see .chezmoiignore.tmpl gating).
+
+  This file is intentionally minimal. Fish sources everything in
+  conf.d/*.fish (alphabetically) BEFORE this file, so the real setup lives
+  there as focused fragments:
+    conf.d/00-env.fish    environment + PATH
+    conf.d/10-tools.fish   tool init (mise/starship/atuin/zoxide)
+
+  zsh remains the login shell; launch fish manually with `fish`.
+*/ -}}
+if status is-interactive
+    # Interactive-only tweaks go here. Nothing needed yet — tool init that
+    # must run interactively is handled in conf.d/10-tools.fish.
+end

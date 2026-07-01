@@ -1,0 +1,26 @@
+{{- /*
+  Tool initialization for fish (Linux only).
+  Fish equivalents of the `eval "$(tool init zsh)"` blocks in dot_zshrc.tmpl.
+  Each is guarded with `type -q` so it's a harmless no-op when the tool
+  isn't installed. atuin/starship/zoxide also emit their own completions
+  here, so they get no separate file under completions/.
+*/ -}}
+# mise — tool/runtime version manager. On Linux it installs our CLI tools.
+# Safe to run in non-interactive shells too, so it lives outside the guard.
+if type -q mise
+    mise activate fish | source
+end
+
+if status is-interactive
+    if type -q starship
+        starship init fish | source
+    end
+
+    if type -q atuin
+        atuin init fish | source
+    end
+
+    if type -q zoxide
+        zoxide init fish | source
+    end
+end
