@@ -1,0 +1,15 @@
+{{- /*
+  Environment + PATH for fish (Linux only).
+  Ported from dot_zshrc.tmpl. macOS-only entries (/opt/homebrew) are omitted
+  by design — this config is Linux-only for now.
+*/ -}}
+# XDG base dir — where all the config files live
+set -gx XDG_CONFIG_HOME $HOME/.config
+
+# Default editor (Linux)
+set -gx EDITOR nvim
+
+# PATH — highest priority first. fish_add_path is idempotent and prepends.
+# `-g` keeps this a per-session global set from config rather than a
+# persisted universal variable (the recommended approach for dotfiles).
+fish_add_path -g $HOME/.local/bin $HOME/bin /usr/local/bin /usr/local/go/bin $HOME/.cargo/bin
