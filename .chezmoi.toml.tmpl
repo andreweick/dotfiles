@@ -1,6 +1,11 @@
 # chezmoi has built-in support for expanding the tilde character, which represents the user's home directory.
+{{ if stat (joinPath .chezmoi.homeDir "code/dotfiles") -}}
+# Personal machines keep the working tree at ~/code/dotfiles (edit + git push from there).
+# On a fresh machine (e.g. an exe.dev VM) this dir doesn't exist, so we omit sourceDir
+# and let chezmoi use its clone location (~/.local/share/chezmoi) instead of pointing at
+# a path that isn't there.
 sourceDir = "~/code/dotfiles/"
-
+{{ end -}}
 {{ if stat (joinPath .chezmoi.homeDir ".config/age/key.txt") -}}
 encryption = "age"
 [age]
