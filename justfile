@@ -281,3 +281,70 @@ code-git-cleanup:
     if [[ $FAILED_COUNT -gt 0 ]]; then
         echo "$(gum style --foreground 196 "Failed:   ") $FAILED_COUNT"
     fi
+
+# ── exe.dev VMs ─────────────────────────────────────────────────────────────
+# Provision exe.dev VMs (exeuntu image) at three levels: a bare box, a box with
+# your public dotfiles + tools, and upgrading a box to full (decrypted secrets).
+# All run from your laptop against the exe.dev CLI (ssh exe.dev …).
+
+# Create a BARE exe.dev VM — plain exeuntu, nothing added: no dotfiles, no
+# tools, no secrets. A clean Linux box for throwaway experiments or when you
+# don't want your config on it. Optional VM name (auto-generated if omitted).
+#   just exe-new-bare          # auto-named
+#   just exe-new-bare scratch  # named
+exe-new-bare name="":
+    #!/usr/bin/env bash
+    set -euo pipefail
+    args=(new)
+    [[ -n "{{ name }}" ]] && args+=("--name={{ name }}")
+    ssh exe.dev "${args[@]}"
+
+# Create an exe.dev VM with your PUBLIC dotfiles + tools, but NO secrets.
+# A first-boot setup script curl-pipes bootstrap.sh in public mode, which
+# installs chezmoi, applies the public dotfiles, and runs the mise/apt sync
+# daemons to install your CLI toolchain (mise, rg, …). Every encrypted file is
+# skipped because no age key is present. Upgrade later with `just exe-decrypt`.
+# Optional VM name (auto-generated if omitted).
+#   just exe-new            # auto-named
+#   just exe-new my-box     # named
+exe-new name="":
+    #!/usr/bin/env bash
+    set -euo pipefail
+    args=(new)
+    [[ -n "{{ name }}" ]] && args+=("--name={{ name }}")
+    # The setup script runs once at first boot on the VM. Public mode installs
+    # the public dotfiles + toolchain and skips every encrypted file (no key).
+    printf '%s\n' \
+      '#!/usr/bin/env sh' \
+      'export BOOTSTRAP_MODE=public' \
+      'sh -c "$(curl -fsLS https://raw.githubusercontent.com/andreweick/dotfiles/main/bootstrap.sh)"' \
+      | ssh exe.dev "${args[@]}" --setup-script=/dev/stdin
+
+# Upgrade an existing PUBLIC exe.dev VM to FULL — decrypt secrets on it.
+# Runs from your laptop: copies your local age key up over the SSH channel
+# (never through the exe.dev control plane), then re-inits chezmoi so the [age]
+# block is generated and the encrypted files are decrypted and applied. Only do
+# this on VMs you trust as much as this laptop — the key decrypts your whole
+# vault. Requires ~/.config/age/key.txt to exist locally.
+#   just exe-decrypt my-box
+exe-decrypt vm:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    key="$HOME/.config/age/key.txt"
+    [[ -f "$key" ]] || { echo "❌ no local age key at $key — nothing to push" >&2; exit 1; }
+    host="{{ vm }}.exe.xyz"
+    echo "🔐 pushing age key to {{ vm }} and re-initializing chezmoi…"
+    ssh "$host" 'mkdir -p ~/.config/age && chmod 700 ~/.config/age'
+    scp "$key" "$host:.config/age/key.txt"
+    # Why re-`init` an already-initialized chezmoi? Because chezmoi (re)generates
+    # its config file (~/.config/chezmoi/chezmoi.toml) from .chezmoi.toml.tmpl
+    # ONLY at `init` — never at `apply` or `update`. Our template emits the [age]
+    # encryption block only when key.txt exists, so a box first set up in public
+    # mode has NO [age] block: chezmoi still thinks it's a public machine and
+    # skips every encrypted file. Placing the key isn't enough — you must re-init
+    # so the config is regenerated WITH [age]. `init --apply andreweick` does the
+    # regen and the apply in one pass. (`andreweick` = the source repo,
+    # github.com/andreweick/dotfiles; harmless to re-pass on an initialized box —
+    # it just git-pulls the existing source rather than re-cloning.)
+    ssh "$host" 'chmod 600 ~/.config/age/key.txt && ~/.local/bin/chezmoi init --apply andreweick'
+    echo "✅ {{ vm }} is now a full machine (secrets decrypted)."

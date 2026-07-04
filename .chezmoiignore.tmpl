@@ -40,13 +40,11 @@ Ignore the whole fish config tree on any non-Linux OS.
 This block is only active if the final decrypted age key does NOT exist at its
 destination. When there's no key, all .age files are automatically ignored.
 */}}
-{{- $keyPath := joinPath .chezmoi.homeDir ".config" "age" "key.txt" -}}
-{{- if not (stat $keyPath) -}}
-
+{{- $keyPath := joinPath .chezmoi.homeDir ".config" "age" "key.txt" }}
+{{ if not (stat $keyPath) -}}
 # When age key is not present, ignore ALL encrypted .age files
 **/*.age
-
-{{- end -}}
+{{ end -}}
 
 
 #
