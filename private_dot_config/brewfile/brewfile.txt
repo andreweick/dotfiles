@@ -2,6 +2,7 @@ tap "benbjohnson/litestream"
 tap "siderolabs/tap"
 tap "fluxcd/tap"
 
+brew "mise"
 brew "age"
 brew "sops"
 brew "atuin", restart_service: :changed
