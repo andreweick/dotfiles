@@ -14,6 +14,7 @@ font-size = 16
 # font-style = Medium
 # font-size = 35
 
+copy-on-select = clipboard
 
 # Binds Shift+Enter to insert a newline character, preventing premature submission in applications that interpret Enter as a command.
 

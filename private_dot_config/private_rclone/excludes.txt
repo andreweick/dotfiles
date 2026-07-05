@@ -1,0 +1,32 @@
+# Common junk / OS-metadata files excluded from rclone transfers by default.
+# Shared by `just rclone-copy` / `just rclone-sync` and the interactive rclone
+# wrapper in .zshrc (both pass this via --exclude-from). rclone filter globs:
+# unanchored patterns match at any depth; a trailing "/" matches directories.
+
+# macOS
+.DS_Store
+._*
+.AppleDouble
+.LSOverride
+.Spotlight-V100
+.DocumentRevisions-V100
+.fseventsd
+.TemporaryItems
+.Trashes
+.VolumeIcon.icns
+.apdisk
+
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+desktop.ini
+$RECYCLE.BIN/
+
+# Linux
+.directory
+.Trash-*
+
+# Editor swap / backup files
+.*.swp
+.*.swo

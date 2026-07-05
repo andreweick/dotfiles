@@ -68,17 +68,13 @@ if command -v rclone >/dev/null 2>&1; then
       
       [[ "$args_str" == *" --ignore-case-sync "* ]] || extra+=(--ignore-case-sync)
       [[ "$args_str" == *" --progress "* ]]         || extra+=(--progress)
-      
-      # Exclude macOS and other junk files
-      if [[ "$args_str" != *" --exclude "* ]]; then
-        extra+=(
-          --exclude '.DS_Store'
-          --exclude '.Spotlight-V100'
-          --exclude '.Trashes'
-          --exclude 'Thumbs.db'  # Windows
-        )
+
+      # Exclude common junk files via the shared list (same one `just rclone-copy`
+      # / `rclone-sync` use). Skip if the call already sets a filter of its own.
+      if [[ "$args_str" != *" --exclude"* && "$args_str" != *" --filter"* && -f ~/.config/rclone/excludes.txt ]]; then
+        extra+=(--exclude-from ~/.config/rclone/excludes.txt)
       fi
-      
+
       command rclone "$@" "${extra[@]}"
     else
       command rclone "$@"
