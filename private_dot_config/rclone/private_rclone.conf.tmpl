@@ -26,17 +26,7 @@ remote = jackie2:/media
 hashes = md5
 max_age = off
 
-{{/* --- Logic to include encrypted secrets --- */}}
-
-{{- $keyPath := joinPath .chezmoi.homeDir ".config" "age" "key.txt" -}}
-{{- if stat $keyPath }}
-
-{{- /*
-The age key exists, so we can safely decrypt and include the secrets.
-The path in the 'include' function now EXACTLY matches the filename
-in your source directory.
-*/}}
-
+{{/* Include encrypted secrets when the age key is present. */ -}}
+{{ if stat (joinPath .chezmoi.homeDir ".config" "age" "key.txt") -}}
 {{ include "private_dot_config/rclone/encrypted_private_secrets.conf.age" | decrypt }}
-
-{{- end }}
+{{ end -}}
