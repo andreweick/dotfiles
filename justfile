@@ -348,3 +348,83 @@ exe-decrypt vm:
     # it just git-pulls the existing source rather than re-cloning.)
     ssh "$host" 'chmod 600 ~/.config/age/key.txt && ~/.local/bin/chezmoi init --apply andreweick'
     echo "✅ {{ vm }} is now a full machine (secrets decrypted)."
+
+# ── ad-hoc SSH transfer (no preconfigured rclone remote) ────────────────────
+# rsync/scp-style convenience with rclone's engine, via rclone's on-the-fly
+# SFTP connection string — hosts need NOT exist in rclone.conf. Transport is
+# delegated to `ssh` (--sftp-ssh ssh), so ~/.ssh/config, config.d, IdentityFile,
+# ProxyJump and known_hosts all apply exactly as they would for scp.
+#
+# The remote side is auto-detected: any arg shaped like [user@]host:/path (has a
+# ':') becomes an SFTP remote; a plain path stays local. So the SAME recipe does
+# push (local→remote), pull (remote→local), and server→server (both remote).
+# Note: server→server streams THROUGH this machine (SFTP has no server-side copy).
+
+# Copy files to/from/between SSH hosts. Additive — never deletes on the dest.
+# DRY-RUN BY DEFAULT; pass `--go` to actually transfer.
+#   just rclone-copy ~/file.txt          andy@host:/tmp/            # push (preview)
+#   just rclone-copy ~/file.txt          andy@host:/tmp/ --go       # push (real)
+#   just rclone-copy andy@host:/srv/data ~/backup/ --go             # pull
+#   just rclone-copy andy@s1:/data       andy@s2:/data --go         # server→server
+rclone-copy src dest *EXTRA:
+    #!/usr/bin/env bash
+    set -euo pipefail
+
+    # Turn "[user@]host:/path" into an on-the-fly SFTP remote; leave locals alone.
+    remotify() {
+        local a="$1"
+        [[ "$a" != *:* ]] && { printf '%s' "$a"; return; }   # local path, unchanged
+        local hostpart="${a%%:*}" path="${a#*:}"
+        if [[ "$hostpart" == *@* ]]; then
+            printf ':sftp,host=%s,user=%s:%s' "${hostpart#*@}" "${hostpart%@*}" "$path"
+        else
+            printf ':sftp,host=%s:%s' "$hostpart" "$path"
+        fi
+    }
+    SRC="$(remotify "{{ src }}")"
+    DST="$(remotify "{{ dest }}")"
+
+    # --go toggles real execution; everything else passes through to rclone.
+    dryrun="--dry-run"; pass=()
+    for a in {{ EXTRA }}; do
+        if [[ "$a" == "--go" ]]; then dryrun=""; else pass+=("$a"); fi
+    done
+    [[ -n "$dryrun" ]] && echo "🌵 DRY RUN — add --go to transfer for real"
+
+    rclone copy "$SRC" "$DST" \
+      --sftp-ssh ssh --progress $dryrun ${pass[@]+"${pass[@]}"}
+
+# Mirror src onto dest across SSH — DESTRUCTIVE: files on dest that aren't in
+# src are DELETED. Same auto-detect + connection-string trick as rclone-copy.
+# DRY-RUN BY DEFAULT — the preview lists what it would delete; review it, then
+# pass `--go` to commit.
+#   just rclone-sync ~/dir/        andy@host:/srv/data          # preview + deletes
+#   just rclone-sync ~/dir/        andy@host:/srv/data --go     # commit
+rclone-sync src dest *EXTRA:
+    #!/usr/bin/env bash
+    set -euo pipefail
+
+    remotify() {
+        local a="$1"
+        [[ "$a" != *:* ]] && { printf '%s' "$a"; return; }
+        local hostpart="${a%%:*}" path="${a#*:}"
+        if [[ "$hostpart" == *@* ]]; then
+            printf ':sftp,host=%s,user=%s:%s' "${hostpart#*@}" "${hostpart%@*}" "$path"
+        else
+            printf ':sftp,host=%s:%s' "$hostpart" "$path"
+        fi
+    }
+    SRC="$(remotify "{{ src }}")"
+    DST="$(remotify "{{ dest }}")"
+
+    dryrun="--dry-run"; pass=()
+    for a in {{ EXTRA }}; do
+        if [[ "$a" == "--go" ]]; then dryrun=""; else pass+=("$a"); fi
+    done
+
+    gum style --foreground 196 --bold --border double --border-foreground 196 --padding "0 2" \
+      "⚠️  rclone sync is DESTRUCTIVE — extra files on the destination will be DELETED"
+    [[ -n "$dryrun" ]] && echo "🌵 DRY RUN — review the deletes below, then add --go to commit"
+
+    rclone sync "$SRC" "$DST" \
+      --sftp-ssh ssh --progress $dryrun ${pass[@]+"${pass[@]}"}
