@@ -366,33 +366,72 @@ exe-decrypt vm:
 #   just rclone-copy ~/file.txt          andy@host:/tmp/ --go       # push (real)
 #   just rclone-copy andy@host:/srv/data ~/backup/ --go             # pull
 #   just rclone-copy andy@s1:/data       andy@s2:/data --go         # server→server
+[arg("src", help="Source: local path or [user@]host:/path (remote is SFTP over ssh)")]
+[arg("dest", help="Destination: local path or [user@]host:/path")]
+[arg("EXTRA", help="--go = real run; --mkparents = skip dest-parent guard; rest pass through to rclone")]
 rclone-copy src dest *EXTRA:
     #!/usr/bin/env bash
     set -euo pipefail
 
     # Turn "[user@]host:/path" into an on-the-fly SFTP remote; leave locals alone.
+    # Transport is delegated to `ssh` PER-REMOTE via the connection string's `ssh`
+    # option (the on-the-fly equivalent of --sftp-ssh). It MUST be per-remote: a
+    # single global --sftp-ssh can't serve two different hosts, so server→server
+    # would break. Embedding the host in `ssh '...'` also means ~/.ssh/config,
+    # ProxyJump and IdentityFile all apply, exactly like scp.
+    #
+    # The ssh -o flags bypass host-key checking entirely (no first-connect prompt,
+    # nothing written to known_hosts) for frictionless ad-hoc transfers — the
+    # trade-off is no protection against a changed host key. The three sftp params
+    # only silence rclone's cosmetic NOTICEs (shell probe, hash-binary probe,
+    # host-key); known_hosts_file=/dev/null is just an always-present empty file
+    # so rclone stops warning.
     remotify() {
         local a="$1"
         [[ "$a" != *:* ]] && { printf '%s' "$a"; return; }   # local path, unchanged
         local hostpart="${a%%:*}" path="${a#*:}"
-        if [[ "$hostpart" == *@* ]]; then
-            printf ':sftp,host=%s,user=%s:%s' "${hostpart#*@}" "${hostpart%@*}" "$path"
-        else
-            printf ':sftp,host=%s:%s' "$hostpart" "$path"
-        fi
+        printf ":sftp,ssh='ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null %s',shell_type=unix,disable_hashcheck=true,known_hosts_file=/dev/null:%s" "$hostpart" "$path"
     }
+    # Preflight: refuse to run unless the destination's PARENT dir already exists —
+    # a cheap guard against a wrong host/IP (the wrong box won't have your tree, so
+    # we bail before rclone creates anything). rclone still creates the final leaf
+    # dir; pass --mkparents to skip this and let rclone build the whole tree.
+    preflight() {
+        local dest="$1"
+        if [[ "$dest" == *:* ]]; then
+            local hostpart="${dest%%:*}" parent
+            parent="$(dirname "${dest#*:}")"
+            [[ "$parent" == "." ]] && return 0   # remote home dir — always exists
+            rclone lsf --dirs-only "$(remotify "$hostpart:$parent/")" >/dev/null 2>&1 && return 0
+            echo "✋ Destination parent '$parent' not found on '$hostpart' — wrong host/path?" >&2
+            echo "   Create it first, or pass --mkparents to build the tree. Aborting." >&2
+            exit 1
+        fi
+        local parent; parent="$(dirname "$dest")"
+        [[ -d "$parent" ]] || { echo "✋ Local destination parent '$parent' does not exist. Aborting (--mkparents to skip)." >&2; exit 1; }
+    }
+
     SRC="$(remotify "{{ src }}")"
     DST="$(remotify "{{ dest }}")"
 
-    # --go toggles real execution; everything else passes through to rclone.
-    dryrun="--dry-run"; pass=()
+    # --go = real run; --mkparents = skip the parent-exists guard; rest → rclone.
+    dryrun="--dry-run"; mkparents=0; pass=()
     for a in {{ EXTRA }}; do
-        if [[ "$a" == "--go" ]]; then dryrun=""; else pass+=("$a"); fi
+        case "$a" in
+            --go)        dryrun="" ;;
+            --mkparents) mkparents=1 ;;
+            *)           pass+=("$a") ;;
+        esac
     done
+    [[ "$mkparents" == 1 ]] || preflight "{{ dest }}"
     [[ -n "$dryrun" ]] && echo "🌵 DRY RUN — add --go to transfer for real"
 
+    # Shared junk-file excludes (same list the interactive rclone wrapper uses).
+    xf=(); [[ -f ~/.config/rclone/excludes.txt ]] && xf=(--exclude-from ~/.config/rclone/excludes.txt)
+
     rclone copy "$SRC" "$DST" \
-      --sftp-ssh ssh --progress $dryrun ${pass[@]+"${pass[@]}"}
+      --ignore-case-sync --progress $dryrun \
+      ${xf[@]+"${xf[@]}"} ${pass[@]+"${pass[@]}"}
 
 # Mirror src onto dest across SSH — DESTRUCTIVE: files on dest that aren't in
 # src are DELETED. Same auto-detect + connection-string trick as rclone-copy.
@@ -400,31 +439,60 @@ rclone-copy src dest *EXTRA:
 # pass `--go` to commit.
 #   just rclone-sync ~/dir/        andy@host:/srv/data          # preview + deletes
 #   just rclone-sync ~/dir/        andy@host:/srv/data --go     # commit
+[arg("src", help="Source: local path or [user@]host:/path (remote is SFTP over ssh)")]
+[arg("dest", help="Destination to mirror onto — DESTRUCTIVE: extra files here are DELETED")]
+[arg("EXTRA", help="--go = commit the sync; --mkparents = skip dest-parent guard; rest pass through to rclone")]
 rclone-sync src dest *EXTRA:
     #!/usr/bin/env bash
     set -euo pipefail
 
+    # Per-remote `ssh` in the connection string — see rclone-copy for the full
+    # rationale (per-remote requirement, host-key bypass, cosmetic-NOTICE params).
     remotify() {
         local a="$1"
         [[ "$a" != *:* ]] && { printf '%s' "$a"; return; }
         local hostpart="${a%%:*}" path="${a#*:}"
-        if [[ "$hostpart" == *@* ]]; then
-            printf ':sftp,host=%s,user=%s:%s' "${hostpart#*@}" "${hostpart%@*}" "$path"
-        else
-            printf ':sftp,host=%s:%s' "$hostpart" "$path"
-        fi
+        printf ":sftp,ssh='ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null %s',shell_type=unix,disable_hashcheck=true,known_hosts_file=/dev/null:%s" "$hostpart" "$path"
     }
+    # Preflight guard against a wrong host/IP — see rclone-copy. Extra important
+    # here: syncing onto the wrong (or empty) box could mirror-DELETE. rclone still
+    # creates the final leaf dir; pass --mkparents to skip and build the tree.
+    preflight() {
+        local dest="$1"
+        if [[ "$dest" == *:* ]]; then
+            local hostpart="${dest%%:*}" parent
+            parent="$(dirname "${dest#*:}")"
+            [[ "$parent" == "." ]] && return 0   # remote home dir — always exists
+            rclone lsf --dirs-only "$(remotify "$hostpart:$parent/")" >/dev/null 2>&1 && return 0
+            echo "✋ Destination parent '$parent' not found on '$hostpart' — wrong host/path?" >&2
+            echo "   Create it first, or pass --mkparents to build the tree. Aborting." >&2
+            exit 1
+        fi
+        local parent; parent="$(dirname "$dest")"
+        [[ -d "$parent" ]] || { echo "✋ Local destination parent '$parent' does not exist. Aborting (--mkparents to skip)." >&2; exit 1; }
+    }
+
     SRC="$(remotify "{{ src }}")"
     DST="$(remotify "{{ dest }}")"
 
-    dryrun="--dry-run"; pass=()
+    # --go = commit; --mkparents = skip the parent-exists guard; rest → rclone.
+    dryrun="--dry-run"; mkparents=0; pass=()
     for a in {{ EXTRA }}; do
-        if [[ "$a" == "--go" ]]; then dryrun=""; else pass+=("$a"); fi
+        case "$a" in
+            --go)        dryrun="" ;;
+            --mkparents) mkparents=1 ;;
+            *)           pass+=("$a") ;;
+        esac
     done
+    [[ "$mkparents" == 1 ]] || preflight "{{ dest }}"
 
     gum style --foreground 196 --bold --border double --border-foreground 196 --padding "0 2" \
       "⚠️  rclone sync is DESTRUCTIVE — extra files on the destination will be DELETED"
     [[ -n "$dryrun" ]] && echo "🌵 DRY RUN — review the deletes below, then add --go to commit"
 
+    # Shared junk-file excludes (same list the interactive rclone wrapper uses).
+    xf=(); [[ -f ~/.config/rclone/excludes.txt ]] && xf=(--exclude-from ~/.config/rclone/excludes.txt)
+
     rclone sync "$SRC" "$DST" \
-      --sftp-ssh ssh --progress $dryrun ${pass[@]+"${pass[@]}"}
+      --ignore-case-sync --progress $dryrun \
+      ${xf[@]+"${xf[@]}"} ${pass[@]+"${pass[@]}"}
