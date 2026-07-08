@@ -368,7 +368,7 @@ exe-decrypt vm:
 #   just rclone-copy andy@s1:/data       andy@s2:/data --go         # server→server
 [arg("src", help="Source: local path or [user@]host:/path (remote is SFTP over ssh)")]
 [arg("dest", help="Destination: local path or [user@]host:/path")]
-[arg("EXTRA", help="--go = real run; --mkparents = skip dest-parent guard; rest pass through to rclone")]
+[arg("EXTRA", help="--go = real run; --mkparents = skip dest-parent guard; --bwlimit … overrides the 60M default; rest pass through to rclone")]
 rclone-copy src dest *EXTRA:
     #!/usr/bin/env bash
     set -euo pipefail
@@ -424,14 +424,27 @@ rclone-copy src dest *EXTRA:
         esac
     done
     [[ "$mkparents" == 1 ]] || preflight "{{ dest }}"
-    [[ -n "$dryrun" ]] && echo "🌵 DRY RUN — add --go to transfer for real"
+    [[ -n "$dryrun" ]] && gum style --foreground 46 --bold --border double --border-foreground 46 --padding "0 2" \
+      "🌵 DRY RUN — nothing will be transferred. Add --go to run for real."
 
     # Shared junk-file excludes (same list the interactive rclone wrapper uses).
     xf=(); [[ -f ~/.config/rclone/excludes.txt ]] && xf=(--exclude-from ~/.config/rclone/excludes.txt)
 
-    rclone copy "$SRC" "$DST" \
-      --ignore-case-sync --progress $dryrun \
-      ${xf[@]+"${xf[@]}"} ${pass[@]+"${pass[@]}"}
+    # Default to half of a 1 Gbit link (~60 MiByte/s); a --bwlimit in EXTRA wins.
+    bw=(--bwlimit 60M)
+    for a in ${pass[@]+"${pass[@]}"}; do
+        [[ "$a" == --bwlimit || "$a" == --bwlimit=* ]] && { bw=(); break; }
+    done
+
+    # Assemble the exact argv, print it copy-pasteably, then run that same argv.
+    cmd=(rclone copy "$SRC" "$DST" --ignore-case-sync --progress)
+    [[ -n "$dryrun" ]] && cmd+=("$dryrun")
+    cmd+=(${bw[@]+"${bw[@]}"} ${xf[@]+"${xf[@]}"} ${pass[@]+"${pass[@]}"})
+
+    echo "📋 Command (copy to run it manually):"
+    printf '  '; printf '%q ' "${cmd[@]}"; echo
+
+    "${cmd[@]}"
 
 # Mirror src onto dest across SSH — DESTRUCTIVE: files on dest that aren't in
 # src are DELETED. Same auto-detect + connection-string trick as rclone-copy.
@@ -441,7 +454,7 @@ rclone-copy src dest *EXTRA:
 #   just rclone-sync ~/dir/        andy@host:/srv/data --go     # commit
 [arg("src", help="Source: local path or [user@]host:/path (remote is SFTP over ssh)")]
 [arg("dest", help="Destination to mirror onto — DESTRUCTIVE: extra files here are DELETED")]
-[arg("EXTRA", help="--go = commit the sync; --mkparents = skip dest-parent guard; rest pass through to rclone")]
+[arg("EXTRA", help="--go = commit the sync; --mkparents = skip dest-parent guard; --bwlimit … overrides the 60M default; rest pass through to rclone")]
 rclone-sync src dest *EXTRA:
     #!/usr/bin/env bash
     set -euo pipefail
@@ -488,11 +501,24 @@ rclone-sync src dest *EXTRA:
 
     gum style --foreground 196 --bold --border double --border-foreground 196 --padding "0 2" \
       "⚠️  rclone sync is DESTRUCTIVE — extra files on the destination will be DELETED"
-    [[ -n "$dryrun" ]] && echo "🌵 DRY RUN — review the deletes below, then add --go to commit"
+    [[ -n "$dryrun" ]] && gum style --foreground 46 --bold --border double --border-foreground 46 --padding "0 2" \
+      "🌵 DRY RUN — nothing will change. Review the deletes below, then add --go to commit."
 
     # Shared junk-file excludes (same list the interactive rclone wrapper uses).
     xf=(); [[ -f ~/.config/rclone/excludes.txt ]] && xf=(--exclude-from ~/.config/rclone/excludes.txt)
 
-    rclone sync "$SRC" "$DST" \
-      --ignore-case-sync --progress $dryrun \
-      ${xf[@]+"${xf[@]}"} ${pass[@]+"${pass[@]}"}
+    # Default to half of a 1 Gbit link (~60 MiByte/s); a --bwlimit in EXTRA wins.
+    bw=(--bwlimit 60M)
+    for a in ${pass[@]+"${pass[@]}"}; do
+        [[ "$a" == --bwlimit || "$a" == --bwlimit=* ]] && { bw=(); break; }
+    done
+
+    # Assemble the exact argv, print it copy-pasteably, then run that same argv.
+    cmd=(rclone sync "$SRC" "$DST" --ignore-case-sync --progress)
+    [[ -n "$dryrun" ]] && cmd+=("$dryrun")
+    cmd+=(${bw[@]+"${bw[@]}"} ${xf[@]+"${xf[@]}"} ${pass[@]+"${pass[@]}"})
+
+    echo "📋 Command (copy to run it manually):"
+    printf '  '; printf '%q ' "${cmd[@]}"; echo
+
+    "${cmd[@]}"
