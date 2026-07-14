@@ -52,7 +52,7 @@ media-sync:
       --checksum --delete-after \
       --exclude '/transcode-hevc-1080p-5bit-movies/**' \
       --exclude '#recycle/**' --exclude '@eaDir/**' --exclude '.DS_Store' \
-      --checkers 8 --transfers 2 --stats-one-line
+      --checkers 4 --transfers 2 --stats-one-line
 
 
 # use rclone check (read-only) with the same excludes, and add --one-way so extra files on the NAS don't count as errors. You don't need --checksum or --delete-after for check
@@ -62,7 +62,7 @@ media-check:
       --one-way \
       --exclude '/transcode-hevc-1080p-5bit-movies/**' \
       --exclude '#recycle/**' --exclude '@eaDir/**' --exclude '.DS_Store' \
-      --checkers 8 --stats-one-line
+      --checkers 4 --stats-one-line
 
 # Scan all repositories under ~/code and display their status (uncommitted, unpushed, unpulled)
 code-git-status SHOW_ALL="":
@@ -368,7 +368,7 @@ exe-decrypt vm:
 #   just rclone-copy andy@s1:/data       andy@s2:/data --go         # server→server
 [arg("src", help="Source: local path or [user@]host:/path (remote is SFTP over ssh)")]
 [arg("dest", help="Destination: local path or [user@]host:/path")]
-[arg("EXTRA", help="--go = real run; --mkparents = skip dest-parent guard; --bwlimit … overrides the 60M default; rest pass through to rclone")]
+[arg("EXTRA", help="--go = real run; --mkparents = skip dest-parent guard; --bwlimit/--checkers/--transfers/--retries override the conservative defaults; rest pass through to rclone")]
 rclone-copy src dest *EXTRA:
     #!/usr/bin/env bash
     set -euo pipefail
@@ -380,6 +380,10 @@ rclone-copy src dest *EXTRA:
     # would break. Embedding the host in `ssh '...'` also means ~/.ssh/config,
     # ProxyJump and IdentityFile all apply, exactly like scp.
     #
+    # ControlMaster/ControlPath/ControlPersist multiplex every connection rclone
+    # opens onto ONE shared SSH session per host. Without it, `ssh=` spawns a fresh
+    # ssh process — a full TCP+handshake+auth — for each connection, and a burst of
+    # those looks like a brute-force flood (trips PerSourcePenalties / fail2ban).
     # The ssh -o flags bypass host-key checking entirely (no first-connect prompt,
     # nothing written to known_hosts) for frictionless ad-hoc transfers — the
     # trade-off is no protection against a changed host key. The three sftp params
@@ -390,7 +394,7 @@ rclone-copy src dest *EXTRA:
         local a="$1"
         [[ "$a" != *:* ]] && { printf '%s' "$a"; return; }   # local path, unchanged
         local hostpart="${a%%:*}" path="${a#*:}"
-        printf ":sftp,ssh='ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null %s',shell_type=unix,disable_hashcheck=true,known_hosts_file=/dev/null:%s" "$hostpart" "$path"
+        printf ":sftp,ssh='ssh -o ControlMaster=auto -o ControlPath=~/.ssh/cm-%%r@%%h:%%p -o ControlPersist=60s -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null %s',shell_type=unix,disable_hashcheck=true,known_hosts_file=/dev/null:%s" "$hostpart" "$path"
     }
     # Preflight: refuse to run unless the destination's PARENT dir already exists —
     # a cheap guard against a wrong host/IP (the wrong box won't have your tree, so
@@ -430,16 +434,30 @@ rclone-copy src dest *EXTRA:
     # Shared junk-file excludes (same list the interactive rclone wrapper uses).
     xf=(); [[ -f ~/.config/rclone/excludes.txt ]] && xf=(--exclude-from ~/.config/rclone/excludes.txt)
 
-    # Default to half of a 1 Gbit link (~60 MiByte/s); a --bwlimit in EXTRA wins.
-    bw=(--bwlimit 60M)
-    for a in ${pass[@]+"${pass[@]}"}; do
-        [[ "$a" == --bwlimit || "$a" == --bwlimit=* ]] && { bw=(); break; }
-    done
+    # Any of these defaults is overridden if the same flag appears in EXTRA —
+    # has_flag scans what the user passed so their choice always wins.
+    has_flag() { local f="$1" a; for a in ${pass[@]+"${pass[@]}"}; do [[ "$a" == "$f" || "$a" == "$f="* ]] && return 0; done; return 1; }
+
+    # Default to half of a 1 Gbit link (~60 MiByte/s).
+    bw=(); has_flag --bwlimit || bw=(--bwlimit 60M)
+
+    # Conservative concurrency + retry caps. The `ssh=` transport opens a fresh SSH
+    # handshake per connection, so a stalled transfer retrying at high concurrency
+    # floods the far end and trips sshd's PerSourcePenalties / fail2ban-style backoff
+    # (an IP that opens many half-finished handshakes gets temporarily blocked). Low
+    # checkers/transfers + few retries keep us to a polite trickle; combined with the
+    # ControlMaster multiplexing in remotify(), connections are reused rather than
+    # re-handshaked. Not time-critical work — slow and gentle beats fast and banned.
+    tune=()
+    has_flag --checkers          || tune+=(--checkers 2)
+    has_flag --transfers         || tune+=(--transfers 2)
+    has_flag --retries           || tune+=(--retries 1)
+    has_flag --low-level-retries || tune+=(--low-level-retries 3)
 
     # Assemble the exact argv, print it copy-pasteably, then run that same argv.
     cmd=(rclone copy "$SRC" "$DST" --ignore-case-sync --progress)
     [[ -n "$dryrun" ]] && cmd+=("$dryrun")
-    cmd+=(${bw[@]+"${bw[@]}"} ${xf[@]+"${xf[@]}"} ${pass[@]+"${pass[@]}"})
+    cmd+=(${tune[@]+"${tune[@]}"} ${bw[@]+"${bw[@]}"} ${xf[@]+"${xf[@]}"} ${pass[@]+"${pass[@]}"})
 
     echo "📋 Command (copy to run it manually):"
     printf '  '; printf '%q ' "${cmd[@]}"; echo
@@ -454,7 +472,7 @@ rclone-copy src dest *EXTRA:
 #   just rclone-sync ~/dir/        andy@host:/srv/data --go     # commit
 [arg("src", help="Source: local path or [user@]host:/path (remote is SFTP over ssh)")]
 [arg("dest", help="Destination to mirror onto — DESTRUCTIVE: extra files here are DELETED")]
-[arg("EXTRA", help="--go = commit the sync; --mkparents = skip dest-parent guard; --bwlimit … overrides the 60M default; rest pass through to rclone")]
+[arg("EXTRA", help="--go = commit the sync; --mkparents = skip dest-parent guard; --bwlimit/--checkers/--transfers/--retries override the conservative defaults; rest pass through to rclone")]
 rclone-sync src dest *EXTRA:
     #!/usr/bin/env bash
     set -euo pipefail
@@ -465,7 +483,7 @@ rclone-sync src dest *EXTRA:
         local a="$1"
         [[ "$a" != *:* ]] && { printf '%s' "$a"; return; }
         local hostpart="${a%%:*}" path="${a#*:}"
-        printf ":sftp,ssh='ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null %s',shell_type=unix,disable_hashcheck=true,known_hosts_file=/dev/null:%s" "$hostpart" "$path"
+        printf ":sftp,ssh='ssh -o ControlMaster=auto -o ControlPath=~/.ssh/cm-%%r@%%h:%%p -o ControlPersist=60s -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null %s',shell_type=unix,disable_hashcheck=true,known_hosts_file=/dev/null:%s" "$hostpart" "$path"
     }
     # Preflight guard against a wrong host/IP — see rclone-copy. Extra important
     # here: syncing onto the wrong (or empty) box could mirror-DELETE. rclone still
@@ -507,16 +525,30 @@ rclone-sync src dest *EXTRA:
     # Shared junk-file excludes (same list the interactive rclone wrapper uses).
     xf=(); [[ -f ~/.config/rclone/excludes.txt ]] && xf=(--exclude-from ~/.config/rclone/excludes.txt)
 
-    # Default to half of a 1 Gbit link (~60 MiByte/s); a --bwlimit in EXTRA wins.
-    bw=(--bwlimit 60M)
-    for a in ${pass[@]+"${pass[@]}"}; do
-        [[ "$a" == --bwlimit || "$a" == --bwlimit=* ]] && { bw=(); break; }
-    done
+    # Any of these defaults is overridden if the same flag appears in EXTRA —
+    # has_flag scans what the user passed so their choice always wins.
+    has_flag() { local f="$1" a; for a in ${pass[@]+"${pass[@]}"}; do [[ "$a" == "$f" || "$a" == "$f="* ]] && return 0; done; return 1; }
+
+    # Default to half of a 1 Gbit link (~60 MiByte/s).
+    bw=(); has_flag --bwlimit || bw=(--bwlimit 60M)
+
+    # Conservative concurrency + retry caps. The `ssh=` transport opens a fresh SSH
+    # handshake per connection, so a stalled transfer retrying at high concurrency
+    # floods the far end and trips sshd's PerSourcePenalties / fail2ban-style backoff
+    # (an IP that opens many half-finished handshakes gets temporarily blocked). Low
+    # checkers/transfers + few retries keep us to a polite trickle; combined with the
+    # ControlMaster multiplexing in remotify(), connections are reused rather than
+    # re-handshaked. Not time-critical work — slow and gentle beats fast and banned.
+    tune=()
+    has_flag --checkers          || tune+=(--checkers 2)
+    has_flag --transfers         || tune+=(--transfers 2)
+    has_flag --retries           || tune+=(--retries 1)
+    has_flag --low-level-retries || tune+=(--low-level-retries 3)
 
     # Assemble the exact argv, print it copy-pasteably, then run that same argv.
     cmd=(rclone sync "$SRC" "$DST" --ignore-case-sync --progress)
     [[ -n "$dryrun" ]] && cmd+=("$dryrun")
-    cmd+=(${bw[@]+"${bw[@]}"} ${xf[@]+"${xf[@]}"} ${pass[@]+"${pass[@]}"})
+    cmd+=(${tune[@]+"${tune[@]}"} ${bw[@]+"${bw[@]}"} ${xf[@]+"${xf[@]}"} ${pass[@]+"${pass[@]}"})
 
     echo "📋 Command (copy to run it manually):"
     printf '  '; printf '%q ' "${cmd[@]}"; echo
