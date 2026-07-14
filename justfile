@@ -383,7 +383,8 @@ rclone-copy src dest *EXTRA:
     # ControlMaster/ControlPath/ControlPersist multiplex every connection rclone
     # opens onto ONE shared SSH session per host. Without it, `ssh=` spawns a fresh
     # ssh process — a full TCP+handshake+auth — for each connection, and a burst of
-    # those looks like a brute-force flood (trips PerSourcePenalties / fail2ban).
+    # those looks like a brute-force flood to the far end's connection rate-limiting
+    # (an SSH gateway / provider network middleware / fail2ban), which then blocks us.
     # The ssh -o flags bypass host-key checking entirely (no first-connect prompt,
     # nothing written to known_hosts) for frictionless ad-hoc transfers — the
     # trade-off is no protection against a changed host key. The three sftp params
@@ -443,11 +444,12 @@ rclone-copy src dest *EXTRA:
 
     # Conservative concurrency + retry caps. The `ssh=` transport opens a fresh SSH
     # handshake per connection, so a stalled transfer retrying at high concurrency
-    # floods the far end and trips sshd's PerSourcePenalties / fail2ban-style backoff
-    # (an IP that opens many half-finished handshakes gets temporarily blocked). Low
-    # checkers/transfers + few retries keep us to a polite trickle; combined with the
-    # ControlMaster multiplexing in remotify(), connections are reused rather than
-    # re-handshaked. Not time-critical work — slow and gentle beats fast and banned.
+    # can flood the far end and trip its connection rate-limiting (an SSH gateway or
+    # provider network middleware — e.g. exe.dev's — that temporarily blocks a source
+    # opening many connections). Low checkers/transfers + few retries keep us to a
+    # polite trickle; combined with the ControlMaster multiplexing in remotify(),
+    # connections are reused rather than re-handshaked. Not time-critical work —
+    # slow and gentle beats fast and blocked.
     tune=()
     has_flag --checkers          || tune+=(--checkers 2)
     has_flag --transfers         || tune+=(--transfers 2)
@@ -534,11 +536,12 @@ rclone-sync src dest *EXTRA:
 
     # Conservative concurrency + retry caps. The `ssh=` transport opens a fresh SSH
     # handshake per connection, so a stalled transfer retrying at high concurrency
-    # floods the far end and trips sshd's PerSourcePenalties / fail2ban-style backoff
-    # (an IP that opens many half-finished handshakes gets temporarily blocked). Low
-    # checkers/transfers + few retries keep us to a polite trickle; combined with the
-    # ControlMaster multiplexing in remotify(), connections are reused rather than
-    # re-handshaked. Not time-critical work — slow and gentle beats fast and banned.
+    # can flood the far end and trip its connection rate-limiting (an SSH gateway or
+    # provider network middleware — e.g. exe.dev's — that temporarily blocks a source
+    # opening many connections). Low checkers/transfers + few retries keep us to a
+    # polite trickle; combined with the ControlMaster multiplexing in remotify(),
+    # connections are reused rather than re-handshaked. Not time-critical work —
+    # slow and gentle beats fast and blocked.
     tune=()
     has_flag --checkers          || tune+=(--checkers 2)
     has_flag --transfers         || tune+=(--transfers 2)
