@@ -12,6 +12,13 @@
 # (github:owner/repo). If `mise install` ever can't resolve a short name, switch
 # that line to its github:owner/repo form.
 
+[settings]
+# Identity used to decrypt native age-encrypted `[env]` values in project
+# `mise.toml` files (e.g. spouterinn's `GORELEASER_KEY`, `COSIGN_PRIVATE_KEY`).
+# Without this, mise fails with "No age identities found for decryption".
+# CI overrides it with the `MISE_AGE_KEY` env var instead.
+age.key_file = "~/.config/age/key.txt"
+
 [tools]
 age        = "latest"
 sops       = "latest"
