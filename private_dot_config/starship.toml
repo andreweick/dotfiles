@@ -2,7 +2,7 @@
 
 add_newline = true  # Inserts a blank line between shell prompts
 command_timeout = 1000  # Change command timeout from 500 to 1000 ms
-format = """$env_var $all"""  # Add custom formatting before other stuff
+format = """$os$env_var$all"""  # Add custom formatting before other stuff
 
 # Drop ugly default prompt characters
 [character]
@@ -11,22 +11,19 @@ error_symbol = ""
 
 # ---
 
-# Shows an icon depending on what distro it is running on
-[env_var.STARSHIP_DISTRO]
-format = '[$env_value](bold white) '
-variable = "STARSHIP_DISTRO"
+# Shows an icon depending on what OS it is running on.
+# Replaces the old [env_var.STARSHIP_DISTRO] hack, which required exporting
+# STARSHIP_DISTRO from every shell rc by hand -- this is built in and needs no
+# shell-side setup, so it works the same on macOS and the Linux boxes.
+[os]
+format = '[$symbol]($style) '
+style = "bold white"
 disabled = false
 
 # Shows the current username
 [env_var.USER]
 format = '[$env_value](bold white) '
 variable = "USER"
-disabled = false
-
-# Shows an icon depending on what device it is running on
-[env_var.STARSHIP_DEVICE]
-format = 'on [$env_value](bold yellow)'
-variable = "STARSHIP_DEVICE"
 disabled = false
 
 # ---
@@ -77,6 +74,11 @@ format = '[ ](bold cyan)'
 
 # Disable some modules that aren't needed anymore
 [username]
+disabled = true
+
+# Was surfacing "us-east-1" from the [default] region in ~/.aws/config
+# whenever AWS_PROFILE was set. No longer using AWS.
+[aws]
 disabled = true
 
 [vagrant]
