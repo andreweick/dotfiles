@@ -302,7 +302,8 @@ exe-new-bare name="":
 # Create an exe.dev VM with your PUBLIC dotfiles + tools, but NO secrets.
 # A first-boot setup script installs chezmoi and applies the dotfiles straight
 # from GitHub, which also runs the mise/apt sync daemons to lay down the CLI
-# toolchain (rg, fzf, gh, …). Upgrade later with `just exe-decrypt`.
+# toolchain (rg, fzf, gh, …), then switches the login shell to zsh.
+# Upgrade later with `just exe-decrypt`.
 # Optional VM name (exe.dev generates one if omitted).
 #   just exe-new            # auto-named
 #   just exe-new my-box     # named
@@ -322,9 +323,24 @@ exe-new name="":
     # -b is load-bearing: get.chezmoi.io defaults BINDIR to a RELATIVE `bin`,
     # i.e. wherever /exe.dev/setup happens to run from. `just exe-decrypt`
     # hardcodes ~/.local/bin/chezmoi, and that dir is first on PATH.
+    #
+    # The trailing chsh points the login shell at the config this repo actually
+    # ships. exeuntu logs you in as bash, but mise -- along with starship, atuin
+    # and zoxide -- is activated only in dot_zshrc.tmpl and fish's
+    # conf.d/10-tools.fish.tmpl; there is no bash config here at all. Skip this
+    # and you land in bash with the whole mise toolchain installed under
+    # ~/.local/share/mise/installs yet absent from PATH, which reads as "the
+    # tools never installed". zsh itself arrives via aptfile.txt during the
+    # apply above, so the chsh has to follow it. `id -un` rather than $USER,
+    # which a non-interactive first-boot script can't count on. Guarded and
+    # non-fatal: a box without zsh keeps bash instead of failing setup.
     printf '%s\n' \
       '#!/usr/bin/env sh' \
       'sh -c "$(curl -fsLS get.chezmoi.io)" -- -b "$HOME/.local/bin" init --apply andreweick' \
+      'if command -v zsh >/dev/null 2>&1; then' \
+      '  sudo chsh -s "$(command -v zsh)" "$(id -un)" ||' \
+      '    echo "setup: could not change login shell to zsh, staying on bash" >&2' \
+      'fi' \
       | ssh exe.dev "${args[@]}" --setup-script=/dev/stdin
 
 # Upgrade an existing PUBLIC exe.dev VM to FULL — decrypt secrets on it.
