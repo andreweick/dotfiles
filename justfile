@@ -334,10 +334,15 @@ exe-new name="":
     # apply above, so the chsh has to follow it. `id -un` rather than $USER,
     # which a non-interactive first-boot script can't count on. Guarded and
     # non-fatal: a box without zsh keeps bash instead of failing setup.
+    #
+    # The `uname -s` check is belt-and-braces. This heredoc only ever executes
+    # on the exeuntu VM -- it is piped to --setup-script, not run locally -- so
+    # it cannot touch this Mac's login shell. The guard states that invariant in
+    # the code rather than leaving it to be inferred from the pipeline.
     printf '%s\n' \
       '#!/usr/bin/env sh' \
       'sh -c "$(curl -fsLS get.chezmoi.io)" -- -b "$HOME/.local/bin" init --apply andreweick' \
-      'if command -v zsh >/dev/null 2>&1; then' \
+      'if [ "$(uname -s)" = "Linux" ] && command -v zsh >/dev/null 2>&1; then' \
       '  sudo chsh -s "$(command -v zsh)" "$(id -un)" ||' \
       '    echo "setup: could not change login shell to zsh, staying on bash" >&2' \
       'fi' \
