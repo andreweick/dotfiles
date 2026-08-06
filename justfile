@@ -300,11 +300,10 @@ exe-new-bare name="":
     ssh exe.dev "${args[@]}"
 
 # Create an exe.dev VM with your PUBLIC dotfiles + tools, but NO secrets.
-# A first-boot setup script curl-pipes bootstrap.sh in public mode, which
-# installs chezmoi, applies the public dotfiles, and runs the mise/apt sync
-# daemons to install your CLI toolchain (mise, rg, …). Every encrypted file is
-# skipped because no age key is present. Upgrade later with `just exe-decrypt`.
-# Optional VM name (auto-generated if omitted).
+# A first-boot setup script installs chezmoi and applies the dotfiles straight
+# from GitHub, which also runs the mise/apt sync daemons to lay down the CLI
+# toolchain (rg, fzf, gh, …). Upgrade later with `just exe-decrypt`.
+# Optional VM name (exe.dev generates one if omitted).
 #   just exe-new            # auto-named
 #   just exe-new my-box     # named
 exe-new name="":
@@ -312,12 +311,20 @@ exe-new name="":
     set -euo pipefail
     args=(new)
     [[ -n "{{ name }}" ]] && args+=("--name={{ name }}")
-    # The setup script runs once at first boot on the VM. Public mode installs
-    # the public dotfiles + toolchain and skips every encrypted file (no key).
+    # No BOOTSTRAP_MODE needed: secrets are excluded structurally, not by a flag.
+    # With no ~/.config/age/key.txt at init time, .chezmoi.toml.tmpl omits the
+    # [age] block; with encryption unconfigured chezmoi's encryption suffix is
+    # empty, so encrypted targets keep their `.age` extension and the `**/*.age`
+    # rule in .chezmoiignore.tmpl matches them. A setup script couldn't decrypt
+    # anything anyway -- age needs a tty to read the passphrase, and first boot
+    # has none.
+    #
+    # -b is load-bearing: get.chezmoi.io defaults BINDIR to a RELATIVE `bin`,
+    # i.e. wherever /exe.dev/setup happens to run from. `just exe-decrypt`
+    # hardcodes ~/.local/bin/chezmoi, and that dir is first on PATH.
     printf '%s\n' \
       '#!/usr/bin/env sh' \
-      'export BOOTSTRAP_MODE=public' \
-      'sh -c "$(curl -fsLS https://raw.githubusercontent.com/andreweick/dotfiles/main/bootstrap.sh)"' \
+      'sh -c "$(curl -fsLS get.chezmoi.io)" -- -b "$HOME/.local/bin" init --apply andreweick' \
       | ssh exe.dev "${args[@]}" --setup-script=/dev/stdin
 
 # Upgrade an existing PUBLIC exe.dev VM to FULL — decrypt secrets on it.
