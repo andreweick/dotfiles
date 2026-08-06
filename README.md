@@ -30,8 +30,9 @@ That's it — chezmoi is installed, the master key is decrypted to
 `~/.config/age/key.txt`, and all secrets (SSH keys, rclone/cosign/sops, fonts)
 are applied. Package managers set themselves up on first apply:
 - **macOS** — install Homebrew first: `/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"`
-- **Linux** — mise is installed for you (tools install on the next apply), plus a
-  tiny apt base layer (`zsh git openssh-client curl ca-certificates build-essential`).
+- **Linux** — mise installs itself via `curl https://mise.run | sh` (no sudo, no
+  apt repo), then installs its tools in the same apply, plus a tiny apt base
+  layer (`zsh git openssh-client curl ca-certificates build-essential`).
 
 ### Without secrets (or chezmoi already installed)
 

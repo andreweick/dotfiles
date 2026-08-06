@@ -14,9 +14,39 @@ readonly MARKER_FILE="$HOME/.config/mise/mise_last_run.txt"
 readonly MISE_CONFIG_PATH="$HOME/.config/mise/config.toml"
 
 # --- INITIAL CHECKS ---
+# chezmoi runs this in a non-interactive shell that never sources ~/.zshrc, so
+# ~/.local/bin -- where the installer drops mise -- isn't on PATH yet.
+export PATH="$HOME/.local/bin:$PATH"
+
+# Bootstrap mise itself. Homebrew owns mise on macOS (see brewfile.txt), but
+# this script is darwin-gated, so we only ever get here on Linux -- where there
+# is no Homebrew and mise isn't in the Debian/Ubuntu repos. The standalone
+# installer needs no sudo and no third-party apt repo, and it installs to
+# ~/.local/bin/mise by default. apt-sync runs before this script (chezmoi
+# orders run_always_after_* alphabetically), so curl is already present.
 if ! command -v mise &> /dev/null; then
-    echo "ℹ️  mise not found, skipping."
-    exit 0
+    if ! command -v curl &> /dev/null; then
+        echo "⚠️  mise not found and curl unavailable, skipping."
+        exit 0
+    fi
+
+    echo "📥 mise not found, installing to ~/.local/bin..."
+    # pipefail matters here: without it the pipeline reports sh's status, so a
+    # failed download would look like a clean install. -f keeps curl from
+    # piping an HTTP error page into sh in the first place.
+    if ! (set -o pipefail; curl -fsSL https://mise.run | sh); then
+        echo "⚠️  mise install failed, skipping."
+        exit 0
+    fi
+
+    # Re-check rather than assume: the installer honours MISE_INSTALL_PATH, so
+    # a non-default location would land outside the PATH we just set.
+    if ! command -v mise &> /dev/null; then
+        echo "⚠️  mise installed but not on PATH, skipping."
+        exit 0
+    fi
+
+    echo "✅ Installed mise $(mise --version)."
 fi
 if [ ! -f "$MISE_CONFIG_PATH" ]; then
     echo "ℹ️  mise config.toml not found, skipping."

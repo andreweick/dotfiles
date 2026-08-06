@@ -222,7 +222,13 @@ dotfiles/
   (darwin-gated), with interactive cleanup of extraneous packages
 - **Linux — mise** (`~/.config/mise/config.toml`): installs CLI tools from
   GitHub releases into `~/.local/bin` (no Homebrew, no sudo).
-  `run_always_after_mise-sync.sh.tmpl` runs `mise install` + `mise upgrade`
+  `run_always_after_mise-sync.sh.tmpl` runs `mise install` + `mise upgrade`,
+  and bootstraps mise itself via `curl https://mise.run | sh` when absent
+- **mise itself**: Homebrew on macOS (`brew "mise"` in `brewfile.txt`), the
+  standalone installer on Linux. mise isn't in the Debian/Ubuntu repos — apt
+  would need a third-party PPA/extrepo plus sudo, which the flat
+  `aptfile.txt` install loop can't express. Never install both on one machine:
+  two mise binaries means two sets of shims racing for PATH
 - **Linux — apt base layer** (`aptfile.txt`): only the floor mise can't provide
   (zsh, git, openssh-client, curl, ca-certificates, build-essential) via
   `run_always_after_apt-sync.sh.tmpl`
