@@ -42,3 +42,5 @@ window-padding-y = 10
 # This is crucial so you can use Option+B and Option+F to jump words in bash/zsh/tmux.
 # (You can also set this to `left` or `right` if you only want one key to act as Alt).
 macos-option-as-alt = true
+
+shell-integration-features = ssh-env,ssh-terminfo
