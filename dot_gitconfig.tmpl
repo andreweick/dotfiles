@@ -18,7 +18,15 @@
 [gpg]
   format = ssh
 [commit]
+{{- if stat (joinPath .chezmoi.homeDir ".ssh" "andy-anywhere") }}
   gpgsign = true
+{{- else }}
+  # No signing key on this machine (a public/secretless box, e.g. an exe.dev VM
+  # bootstrapped with BOOTSTRAP_MODE=public). `signingkey` above is a literal
+  # public key, so git resolves it through the ssh-agent -- with no key loaded
+  # every commit aborts with "Couldn't find key in agent?". Sign nothing here.
+  gpgsign = false
+{{- end }}
 
 {{ if eq .chezmoi.os "darwin" }}
 [diff]
