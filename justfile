@@ -168,119 +168,242 @@ code-git-status SHOW_ALL="":
     echo "$(gum style --foreground 39 "Unpulled repos:  ") $UNPULLED_COUNT"
     echo "$(gum style --foreground 46 "Clean repos:     ") $CLEAN_COUNT"
 
-# Clean up local branches whose remote tracking branch has been deleted
-code-git-cleanup:
+# Delete stale local + remote git branches, age-driven and PR-aware. Non-interactive.
+#
+# DRY-RUN BY DEFAULT — prints what it WOULD delete and touches nothing. Add `--go`
+# to actually delete (locals via git branch -d/-D, remotes via git push --delete).
+# The staleness knob is `--age=N` days (default 30): branches merged into the default
+# branch are always deletable; UNMERGED branches are deleted only once their tip is
+# older than N days. With no target it walks every repo under ~/code; pass a repo
+# name (under ~/code) or a path to scope to one.
+#
+# PROTECTED (never deleted): the default branch, the current branch, main/master/
+# develop, renovate/* branches, and any branch with an OPEN GitHub PR. Open-PR
+# protection needs `gh` authed against a github.com origin; without it a repo runs in
+# a conservative fallback where REMOTE deletes are limited to merged-only (local
+# deletes still follow the age rule — they're reflog-recoverable).
+#
+# Note: `git fetch --prune` runs per repo (even in dry-run) for an accurate picture.
+# Squash/rebase-merged branches don't read as merged, so they're cleaned via the age
+# rule rather than the merge check. GitHub remote deletions are recoverable ~90 days.
+#   just code-git-cleanup                    # dry-run, all ~/code repos, age=30
+#   just code-git-cleanup --go               # execute, all repos
+#   just code-git-cleanup spouterinn         # dry-run, just ~/code/spouterinn
+#   just code-git-cleanup spouterinn --go    # execute, single repo
+#   just code-git-cleanup --age=60 --go      # execute, 60-day staleness threshold
+[arg("ARGS", help="--go = delete for real (default: dry-run); --age=N = staleness in days (default 30); a bare name/path = single repo, else all ~/code")]
+code-git-cleanup *ARGS:
     #!/usr/bin/env bash
     set -euo pipefail
 
-    # Temporary file to collect branches
-    BRANCHES_FILE=$(mktemp)
-    trap "rm -f $BRANCHES_FILE" EXIT
+    # ── parse args (flags + optional target, any order) ──────────────────────
+    LIVE=0; AGE=30; TARGET=""; want_age=0
+    for a in {{ ARGS }}; do
+        if [[ $want_age -eq 1 ]]; then AGE="$a"; want_age=0; continue; fi
+        case "$a" in
+            --go)    LIVE=1 ;;
+            --age=*) AGE="${a#--age=}" ;;
+            --age)   want_age=1 ;;
+            --*)     echo "✋ unknown flag: $a" >&2; exit 2 ;;
+            *)       TARGET="$a" ;;
+        esac
+    done
+    [[ "$AGE" =~ ^[0-9]+$ ]] || { echo "✋ --age must be a whole number of days" >&2; exit 2; }
+    THRESH=$(( AGE * 86400 ))
+    NOW=$(date +%s)
 
-    gum style --foreground 212 --bold "Scanning repositories for orphaned branches..."
-    echo ""
+    if [[ $LIVE -eq 0 ]]; then
+        gum style --foreground 46 --bold --border double --border-foreground 46 --padding "0 2" \
+          "🌵 DRY RUN — nothing will be deleted. Add --go to run for real. (age=${AGE}d)"
+    fi
 
-    TOTAL_ORPHANED=0
+    # ── resolve which repos to process ───────────────────────────────────────
+    REPOS=()
+    if [[ -n "$TARGET" ]]; then
+        case "$TARGET" in
+            "~/"*)       dir="$HOME/${TARGET#\~/}" ;;
+            /*|./*|../*) dir="$TARGET" ;;
+            */*)         dir="$TARGET" ;;
+            *)           dir="$HOME/code/$TARGET" ;;
+        esac
+        [[ -d "$dir/.git" ]] || { echo "✋ not a git repo: $dir" >&2; exit 1; }
+        REPOS+=("$dir")
+    else
+        while IFS= read -r -d '' g; do REPOS+=("$(dirname "$g")"); done \
+            < <(find ~/code -maxdepth 2 -type d -name .git -print0)
+    fi
 
-    # Find all git repositories
-    while IFS= read -r -d '' repo; do
-        repo_dir=$(dirname "$repo")
-        repo_name=$(basename "$repo_dir")
+    # running totals (global — process_repo updates them via dynamic scope)
+    T_LOCAL=0; T_REMOTE=0; T_FAIL=0
 
-        cd "$repo_dir"
+    process_repo() {
+        local dir="$1" name; name="$(basename "$dir")"
+        # pushd/popd (not a subshell) so the T_* totals still accumulate in this
+        # shell, while the caller's cwd survives the walk.
+        pushd "$dir" >/dev/null
 
-        # Find branches where remote tracking branch is gone
-        while IFS= read -r line; do
-            if [[ -n "$line" ]]; then
-                branch=$(echo "$line" | awk '{print $1}')
-                echo "$repo_name|$branch" >> "$BRANCHES_FILE"
-                ((TOTAL_ORPHANED++))
+        # Refresh remote-tracking refs + prune dead ones (read-only, needed for
+        # accurate merged/stale calls). Non-fatal if offline / no remote.
+        git fetch --prune --quiet 2>/dev/null || true
+
+        # Default branch: origin/HEAD, else first existing of main/master/develop.
+        local def
+        def="$(git symbolic-ref --quiet --short refs/remotes/origin/HEAD 2>/dev/null | sed 's#^origin/##')"
+        if [[ -z "$def" ]]; then
+            local c
+            for c in main master develop; do
+                if git show-ref --verify --quiet "refs/remotes/origin/$c" \
+                   || git show-ref --verify --quiet "refs/heads/$c"; then def="$c"; break; fi
+            done
+        fi
+        [[ -z "$def" ]] && def="$(git rev-parse --abbrev-ref HEAD 2>/dev/null || echo main)"
+
+        local cur; cur="$(git rev-parse --abbrev-ref HEAD 2>/dev/null || echo "")"
+
+        # Merge target: prefer origin/<def>, fall back to the local branch.
+        local mergebase="origin/$def"
+        git show-ref --verify --quiet "refs/remotes/origin/$def" || mergebase="$def"
+
+        # GitHub open-PR protection (needs gh authed against a github.com origin).
+        local origin_url has_origin=0 gh_ok=0
+        origin_url="$(git remote get-url origin 2>/dev/null || echo "")"
+        [[ -n "$origin_url" ]] && has_origin=1
+        # Open-PR branch set as a \n-delimited string (bash 3.2 has no assoc arrays).
+        local OPENPR=$'\n'
+        if [[ "$origin_url" == *github.com* ]] && command -v gh >/dev/null 2>&1 \
+           && gh auth status >/dev/null 2>&1; then
+            gh_ok=1
+            local b
+            while IFS= read -r b; do [[ -n "$b" ]] && OPENPR="${OPENPR}${b}"$'\n'; done \
+                < <(gh pr list --state open --limit 500 --json headRefName -q '.[].headRefName' 2>/dev/null || true)
+        fi
+
+        # Why a branch is protected (echoes reason, or empty if deletable).
+        protect_reason() {
+            case "$1" in
+                "$def")              echo "default";  return ;;
+                "$cur")              echo "current";  return ;;
+                main|master|develop) echo "base";     return ;;
+                renovate/*)          echo "renovate"; return ;;
+            esac
+            [[ "$OPENPR" == *$'\n'"$1"$'\n'* ]] && { echo "open-PR"; return; }
+            echo ""
+        }
+
+        local header_shown=0
+        emit_header() {
+            [[ $header_shown -eq 1 ]] && return
+            gum style --foreground 212 --bold --border double --border-foreground 212 \
+              --padding "0 1" "$name  (default: $def)"
+            header_shown=1
+        }
+
+        # ── local branches ───────────────────────────────────────────────────
+        local b ts pr merged stale agedays
+        while read -r b ts; do
+            [[ -z "$b" || "$b" == "HEAD" ]] && continue
+            pr="$(protect_reason "$b")"
+            if [[ -n "$pr" ]]; then
+                if [[ $LIVE -eq 0 && ( "$pr" == "open-PR" || "$pr" == "renovate" ) ]]; then
+                    emit_header; gum style --foreground 244 "  local  $b  → kept ($pr)"
+                fi
+                continue
             fi
-        done < <(git branch -vv | grep ': gone]' || true)
+            merged=0; stale=0
+            git merge-base --is-ancestor "$b" "$mergebase" 2>/dev/null && merged=1
+            agedays=$(( (NOW - ts) / 86400 ))
+            (( NOW - ts > THRESH )) && stale=1
+            if [[ $merged -eq 1 ]]; then
+                emit_header
+                if [[ $LIVE -eq 0 ]]; then
+                    gum style --foreground 39 "  local  $b  → would delete (merged)"; T_LOCAL=$((T_LOCAL+1))
+                elif git branch -d "$b" 2>/dev/null; then
+                    gum style --foreground 46 "  ✓ local  $b deleted (merged)"; T_LOCAL=$((T_LOCAL+1))
+                else
+                    gum style --foreground 196 "  ✗ local  $b failed"; T_FAIL=$((T_FAIL+1))
+                fi
+            elif [[ $stale -eq 1 ]]; then
+                emit_header
+                if [[ $LIVE -eq 0 ]]; then
+                    gum style --foreground 39 "  local  $b  → would force-delete (stale ${agedays}d)"; T_LOCAL=$((T_LOCAL+1))
+                elif git branch -D "$b" 2>/dev/null; then
+                    gum style --foreground 226 "  ✓ local  $b force-deleted (stale ${agedays}d)"; T_LOCAL=$((T_LOCAL+1))
+                else
+                    gum style --foreground 196 "  ✗ local  $b failed"; T_FAIL=$((T_FAIL+1))
+                fi
+            fi
+        done < <(git for-each-ref --format='%(refname:short) %(committerdate:unix)' refs/heads)
 
-    done < <(find ~/code -maxdepth 2 -type d -name .git -print0)
-
-    if [[ $TOTAL_ORPHANED -eq 0 ]]; then
-        gum style --foreground 46 --bold "✨ No orphaned branches found!"
-        exit 0
-    fi
-
-    # Display message
-    gum style --foreground 196 --bold "Found $TOTAL_ORPHANED orphaned branch(es):"
-    gum style --foreground 39 "These branches have been found that do not have remote branches"
-    echo ""
-
-    # Create list of branches in repo/branch format
-    BRANCHES_LIST=$(mktemp)
-    trap "rm -f $BRANCHES_LIST" EXIT
-
-    while IFS='|' read -r repo_name branch; do
-        echo "$repo_name/$branch"
-    done < "$BRANCHES_FILE" > "$BRANCHES_LIST"
-
-    # Create chooser file with branches and action buttons
-    CHOOSER_FILE=$(mktemp)
-    cat "$BRANCHES_LIST" > "$CHOOSER_FILE"
-    echo "✅ Proceed" >> "$CHOOSER_FILE"
-    echo "❌ Cancel" >> "$CHOOSER_FILE"
-
-    # Build --selected arguments (all branches + Proceed button pre-selected)
-    SELECTED_ARGS=()
-    while IFS= read -r branch_entry; do
-        SELECTED_ARGS+=("--selected=$branch_entry")
-    done < "$BRANCHES_LIST"
-    SELECTED_ARGS+=("--selected=✅ Proceed")
-
-    # Let user review and modify selection
-    gum style --foreground 39 "Press Enter to proceed, or Space to modify selection:"
-    SELECTED=$(gum choose --no-limit --height 15 "${SELECTED_ARGS[@]}" < "$CHOOSER_FILE" || true)
-
-    if [[ -z "$SELECTED" ]] || echo "$SELECTED" | grep -q "❌ Cancel"; then
-        gum style --foreground 226 "Cancelled - no branches were deleted"
-        exit 0
-    fi
-
-    # Check if Proceed was selected
-    if ! echo "$SELECTED" | grep -q "✅ Proceed"; then
-        gum style --foreground 226 "Cancelled - no branches were deleted (must select Proceed)"
-        exit 0
-    fi
-
-    DELETED_COUNT=0
-    FAILED_COUNT=0
-
-    # Delete selected branches (excluding the Proceed/Cancel buttons)
-    while IFS= read -r selected_item; do
-        [[ -z "$selected_item" ]] && continue
-        [[ "$selected_item" == "✅ Proceed" ]] && continue
-        [[ "$selected_item" == "❌ Cancel" ]] && continue
-
-        # Parse repo_name/branch format
-        repo_name=$(echo "$selected_item" | cut -d'/' -f1)
-        branch=$(echo "$selected_item" | cut -d'/' -f2-)
-
-        repo_dir=$(find ~/code -maxdepth 1 -type d -name "$repo_name" | head -1)
-        if [[ -n "$repo_dir" ]]; then
-            cd "$repo_dir"
-            if git branch -d "$branch" 2>/dev/null; then
-                gum style --foreground 46 "✓ Deleted $repo_name/$branch"
-                ((DELETED_COUNT++))
-            elif git branch -D "$branch" 2>/dev/null; then
-                gum style --foreground 226 "⚠ Force deleted $repo_name/$branch (had unmerged changes)"
-                ((DELETED_COUNT++))
+        # ── remote branches (origin) ─────────────────────────────────────────
+        local rref del_remote=()
+        while read -r rref ts; do
+            [[ "$rref" == "origin" ]] && continue          # this is origin/HEAD
+            b="${rref#origin/}"
+            [[ "$b" == "HEAD" ]] && continue
+            pr="$(protect_reason "$b")"
+            if [[ -n "$pr" ]]; then
+                if [[ $LIVE -eq 0 && ( "$pr" == "open-PR" || "$pr" == "renovate" ) ]]; then
+                    emit_header; gum style --foreground 244 "  remote $b  → kept ($pr)"
+                fi
+                continue
+            fi
+            merged=0; stale=0
+            git merge-base --is-ancestor "$rref" "$mergebase" 2>/dev/null && merged=1
+            agedays=$(( (NOW - ts) / 86400 ))
+            (( NOW - ts > THRESH )) && stale=1
+            local reason=""
+            if [[ $merged -eq 1 ]]; then
+                reason="merged"
+            elif [[ $stale -eq 1 && $gh_ok -eq 1 ]]; then
+                reason="stale ${agedays}d"
             else
-                gum style --foreground 196 "✗ Failed to delete $repo_name/$branch"
-                ((FAILED_COUNT++))
+                continue                                   # recent, or stale w/o PR data
+            fi
+            emit_header
+            if [[ $LIVE -eq 0 ]]; then
+                gum style --foreground 39 "  remote $b  → would delete ($reason)"; T_REMOTE=$((T_REMOTE+1))
+            else
+                del_remote+=("$b")
+            fi
+        done < <(git for-each-ref --format='%(refname:short) %(committerdate:unix)' refs/remotes/origin)
+
+        if [[ $LIVE -eq 1 && ${#del_remote[@]} -gt 0 ]]; then
+            if git push origin --delete "${del_remote[@]}" 2>/dev/null; then
+                for b in "${del_remote[@]}"; do
+                    gum style --foreground 46 "  ✓ remote $b deleted"; T_REMOTE=$((T_REMOTE+1))
+                done
+            else
+                # Batch push failed — retry individually to isolate the culprit.
+                for b in "${del_remote[@]}"; do
+                    if git push origin --delete "$b" 2>/dev/null; then
+                        gum style --foreground 46 "  ✓ remote $b deleted"; T_REMOTE=$((T_REMOTE+1))
+                    else
+                        gum style --foreground 196 "  ✗ remote $b failed"; T_FAIL=$((T_FAIL+1))
+                    fi
+                done
             fi
         fi
-    done <<< "$SELECTED"
+
+        if [[ $has_origin -eq 1 && $gh_ok -eq 0 ]]; then
+            emit_header
+            gum style --foreground 214 "  ⚠ PR protection off (no gh/GitHub) — remote deletes limited to merged-only"
+        fi
+
+        popd >/dev/null
+    }
+
+    for dir in "${REPOS[@]}"; do process_repo "$dir"; done
 
     echo ""
     gum style --foreground 212 --bold --border double --border-foreground 212 --padding "0 2" "Summary"
-    echo "$(gum style --foreground 46 "Deleted:  ") $DELETED_COUNT"
-    if [[ $FAILED_COUNT -gt 0 ]]; then
-        echo "$(gum style --foreground 196 "Failed:   ") $FAILED_COUNT"
+    verb="would delete"; [[ $LIVE -eq 1 ]] && verb="deleted    "
+    echo "$(gum style --foreground 46 "Local  $verb:") $T_LOCAL"
+    echo "$(gum style --foreground 46 "Remote $verb:") $T_REMOTE"
+    [[ $T_FAIL -gt 0 ]] && echo "$(gum style --foreground 196 "Failed:            ") $T_FAIL"
+    if [[ $LIVE -eq 1 && $T_REMOTE -gt 0 ]]; then
+        gum style --foreground 244 "Remote deletions on GitHub are recoverable for ~90 days."
     fi
+    [[ $LIVE -eq 0 ]] && gum style --foreground 226 "Dry run — re-run with --go to apply."
 
 # ── exe.dev VMs ─────────────────────────────────────────────────────────────
 # Provision exe.dev VMs (exeuntu image) at three levels: a bare box, a box with
