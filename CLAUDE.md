@@ -41,6 +41,18 @@ just media-check        # Verify sync integrity
 
 # Repository scanning
 just code-status        # Check all ~/code repos for changes
+
+# Borg backups on rsync.net — READ-ONLY inspect/restore. Backups themselves are
+# created by borgmatic CronJobs in the vipers cluster; nothing here writes to
+# rsync.net, and every recipe uses the append-only SSH key.
+just borg-doctor        # Preflight: binary, version, key, passphrase, connectivity
+just borg-list          # List archives (add an archive name for its contents)
+just borg-dbs           # The pg_dumps in an archive, with sizes
+just borg-get mealie    # Download one database dump to the current directory
+just borg-cat latest <path>   # Stream any file out of an archive to stdout
+just borg-find mastodon # Search in-archive paths
+just borg-mount ~/mnt/borg    # Browse an archive as a filesystem (needs macFUSE)
+just borg-extract latest      # Restore (dry-run by default; --go to write)
 ```
 
 ### Secret Management
@@ -238,6 +250,8 @@ dotfiles/
 - Build: node, tailwindcss, jj, litestream
 - Cloud: rclone, flyctl, gh, kubectl, flux, talosctl, omnictl
 - Utilities: ripgrep, dust, fzf, gum, zoxide, just, bat, jless
+- Backup: borg (pinned to `"1"` — the rsync.net repo is repokey-blake2 against
+  their `borg14` server binary and a Borg 2.x client cannot open it)
 
 ### Dynamic Shell Completions
 
@@ -248,10 +262,11 @@ Auto-generated completions using `create_` prefix:
 
 ### Encryption Statistics
 
-- **22 total encrypted files**:
+- **23 total encrypted files**:
   - 8 YubiKey SSH keys (primary + backup, resident + non-resident)
   - 2 master age keys (SSH + passphrase methods)
   - 2 cloud configs (RClone secrets, Cosign key)
+  - 1 Borg repo passphrase (rsync.net; read by the `borg-*` justfile recipes)
   - 10 licensed fonts (Operator Mono SSm, MonoLisa Variable)
 
 ## Important Notes

@@ -708,3 +708,396 @@ rclone-sync src dest *EXTRA:
     printf '  '; printf '%q ' "${cmd[@]}"; echo
 
     "${cmd[@]}"
+
+# ── borgbackup / rsync.net ──────────────────────────────────────────────────
+# READ-ONLY access to the off-site Borg repo, for INSPECTING and RESTORING.
+#
+# Nothing here writes to rsync.net. Backups are created by borgmatic CronJobs in
+# the vipers cluster, and prune/compact happen there too — deliberately not
+# mirrored into recipes. Every recipe below uses the APPEND-ONLY SSH key, which
+# the rsync.net side will not let delete anything, so a fat-fingered command
+# can't eat your backups.
+#
+# Three things EVERY borg call against this repo needs, all supplied here so
+# they never get retyped out of shell history again:
+#   BORG_REPO         ssh://de4596@de4596.rsync.net/./borg
+#   BORG_REMOTE_PATH  borg14 — rsync.net's server-side borg is NOT on PATH as
+#                     `borg`; without this every command fails at the far end
+#   BORG_PASSPHRASE   the repo is repokey-blake2, so EVERY command needs it.
+#                     Read from ~/.config/borg/passphrase, which chezmoi ships
+#                     age-encrypted and decrypts on apply (0600).
+#
+# Borg must be 1.x — the repo was created against rsync.net's borg14 server and
+# a 2.x client cannot open it. That's why ~/.config/mise/config.toml pins
+# `borg = "1"`. `just borg-doctor` checks this.
+#
+# WHAT'S IN AN ARCHIVE. borgmatic writes pg_dumps at
+#   borgmatic/postgresql_databases/<pg-hostname>/<database>
+# in pg_dump CUSTOM format — so they're restored with `pg_restore`, not `psql`,
+# and `pg_restore --list` reads the table of contents without restoring
+# anything. `just borg-dbs` lists them; `just borg-get <db>` pulls one down.
+#
+# ARCHIVE NAMES are timestamps (borg-backup-2026-08-16T19:00:09.194131). Every
+# recipe taking an archive accepts `latest` — or nothing at all — instead.
+
+borg_repo := "ssh://de4596@de4596.rsync.net/./borg"
+borg_pass := ".config/borg/passphrase"
+
+# Run any borg command against the rsync.net repo, with repo / passphrase /
+# remote-path already set. Escape hatch for anything the named recipes below
+# don't cover. Remember borg's own `::archive` syntax for archive arguments.
+#   just borg-run list
+#   just borg-run info '::latest-archive-name'
+#   just borg-run diff '::archive-a' 'archive-b'
+[arg("ARGS", help="borg subcommand and flags, e.g. `list`, `info`, `check --repository-only`")]
+borg-run +ARGS:
+    #!/usr/bin/env bash
+    set -euo pipefail
+
+    # Prefer whatever's on PATH (mise activate puts it there in an interactive
+    # shell), but fall back to asking mise directly — `just` invoked from a
+    # non-activated context otherwise can't find it even though it's installed.
+    if command -v borg >/dev/null 2>&1; then
+        BORG_BIN="borg"
+    elif BORG_BIN="$(mise which borg 2>/dev/null)" && [[ -n "$BORG_BIN" ]]; then
+        :
+    else
+        echo "✋ borg not installed. It's in ~/.config/mise/config.toml — run: mise install" >&2
+        exit 1
+    fi
+
+    # Append-only key, always. It can read everything and create archives, but
+    # the far end refuses deletes. Nothing in this section needs more than that.
+    KEY="$HOME/.ssh/rsync.net-borg-append-only-key"
+    [[ -f "$KEY" ]] || { echo "✋ ssh key not found: $KEY" >&2; exit 1; }
+
+    PASS_FILE="$HOME/{{ borg_pass }}"
+    if [[ ! -f "$PASS_FILE" ]]; then
+        echo "✋ no passphrase at $PASS_FILE" >&2
+        echo "   Almost certainly means this machine has no age key, so chezmoi skipped" >&2
+        echo "   the encrypted file. Fix with:" >&2
+        echo "     just czm-setup-age-key && chezmoi init --apply andreweick" >&2
+        exit 1
+    fi
+
+    export BORG_REPO="{{ borg_repo }}"
+    export BORG_REMOTE_PATH="borg14"
+    # Same SSH tuning the cluster CronJob uses (borg-backup/cronjob.yaml). The
+    # ControlMaster/ControlPersist multiplexing is the load-bearing part:
+    # rsync.net drops long-idle sessions, and borg reconnecting per-operation
+    # looks like a connection flood to the far end's rate limiting.
+    export BORG_RSH="ssh -i $KEY -o ServerAliveInterval=30 -o ServerAliveCountMax=10 -o ConnectTimeout=30 -o ControlMaster=auto -o ControlPath=/tmp/borg-ssh-%C -o ControlPersist=10m"
+
+    # Read the passphrase HERE rather than handing borg a BORG_PASSCOMMAND:
+    # borg splits that variable with shlex and runs it WITHOUT a shell, so any
+    # pipe or redirect silently becomes arguments instead of a pipeline. Doing
+    # it in bash sidesteps the question. The file is stored without a trailing
+    # newline; `tr -d` is belt-and-braces against an editor putting one back.
+    BORG_PASSPHRASE="$(tr -d '\n' < "$PASS_FILE")"
+    export BORG_PASSPHRASE
+    [[ -n "$BORG_PASSPHRASE" ]] || { echo "✋ passphrase file is empty: $PASS_FILE" >&2; exit 1; }
+
+    exec "$BORG_BIN" {{ ARGS }}
+
+# Preflight — can this machine reach and read the repo? Checks the binary and
+# its major version, the SSH key, the decrypted passphrase, then does a
+# read-only `borg info` to prove the whole chain end to end. Run this first.
+borg-doctor:
+    #!/usr/bin/env bash
+    set -uo pipefail   # no -e: this recipe reports failures rather than aborting
+
+    fail=0
+    ok()   { gum style --foreground 46  "  ✓ $1"; }
+    bad()  { gum style --foreground 196 "  ✗ $1"; fail=1; }
+    warn() { gum style --foreground 214 "  ⚠ $1"; }
+
+    gum style --foreground 212 --bold --border double --border-foreground 212 --padding "0 1" \
+      "borg doctor"
+
+    BORG_BIN="$(command -v borg 2>/dev/null || mise which borg 2>/dev/null || true)"
+    if [[ -n "$BORG_BIN" ]]; then
+        ver="$("$BORG_BIN" --version 2>/dev/null | awk '{print $2}')"
+        ok "borg $ver at $BORG_BIN"
+        case "$ver" in
+            1.*) ok "on the 1.x line (required — a 2.x client cannot open this repo)" ;;
+            *)   bad "borg $ver is NOT 1.x. This repo is repokey-blake2 against rsync.net's borg14 server and a 2.x client cannot open it. Check the 'borg' pin in ~/.config/mise/config.toml." ;;
+        esac
+        case "$BORG_BIN" in
+            *homebrew*|/usr/local/bin/*) warn "that's a Homebrew path — Homebrew's borgbackup is 2.x, and two binaries on PATH is the shadowing failure the mise config warns about" ;;
+        esac
+    else
+        bad "borg not installed — run: mise install"
+    fi
+
+    KEY="$HOME/.ssh/rsync.net-borg-append-only-key"
+    if [[ -f "$KEY" ]]; then ok "ssh key $(basename "$KEY")"; else bad "missing ssh key: $KEY"; fi
+
+    if [[ -f "$HOME/{{ borg_pass }}" ]]; then
+        if [[ -s "$HOME/{{ borg_pass }}" ]]; then
+            mode="$(stat -f %Lp "$HOME/{{ borg_pass }}" 2>/dev/null || stat -c %a "$HOME/{{ borg_pass }}")"
+            ok "passphrase present ($(wc -c < "$HOME/{{ borg_pass }}" | tr -d ' ') bytes, mode $mode)"
+            [[ "$mode" == "600" ]] || warn "expected mode 600, got $mode"
+        else
+            bad "passphrase file is empty: ~/{{ borg_pass }}"
+        fi
+    else
+        bad "no passphrase at ~/{{ borg_pass }} — no age key on this machine? run: just czm-setup-age-key && chezmoi init --apply andreweick"
+    fi
+
+    if [[ $fail -eq 0 ]]; then
+        echo ""
+        gum style --foreground 244 "Contacting {{ borg_repo }} (read-only)…"
+        if just --justfile "{{ justfile() }}" borg-run info --json >/dev/null 2>&1; then
+            ok "repo reachable and readable over the append-only key"
+        else
+            bad "could not read the repo — re-run 'just borg-run info' to see borg's own error"
+        fi
+    fi
+
+    echo ""
+    if [[ $fail -eq 0 ]]; then
+        gum style --foreground 46 --bold "All checks passed."
+    else
+        gum style --foreground 196 --bold "Some checks failed (see ✗ above)."
+        exit 1
+    fi
+
+# Print the name of the most recent archive. Useful on its own, and it's what
+# every recipe below falls back to when you don't name an archive.
+borg-latest:
+    @just --justfile "{{ justfile() }}" borg-run list --last 1 --format '{archive}{NL}'
+
+# List archives in the repo, or the contents of one archive.
+#   just borg-list                 # every archive, newest last
+#   just borg-list latest          # contents of the newest archive
+#   just borg-list borg-backup-2026-08-16T19:00:09.194131
+[arg("ARCHIVE", help="Archive name, or `latest`. Omit to list all archives.")]
+borg-list *ARCHIVE:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    if [[ -z "{{ ARCHIVE }}" ]]; then
+        just --justfile "{{ justfile() }}" borg-run list
+    else
+        # `::name` is borg's "archive within $BORG_REPO" syntax. Without the
+        # leading `::` borg reads the bare name as a REPO location and tries to
+        # resolve its first path segment as a hostname.
+        archive="{{ ARCHIVE }}"
+        [[ "$archive" == "latest" ]] && archive="$(just --justfile "{{ justfile() }}" borg-latest)"
+        just --justfile "{{ justfile() }}" borg-run list "::$archive"
+    fi
+
+# Repo statistics, or statistics for a single archive.
+#   just borg-info
+#   just borg-info latest
+[arg("ARCHIVE", help="Archive name, or `latest`. Omit for whole-repo stats.")]
+borg-info *ARCHIVE:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    if [[ -z "{{ ARCHIVE }}" ]]; then
+        just --justfile "{{ justfile() }}" borg-run info
+    else
+        archive="{{ ARCHIVE }}"
+        [[ "$archive" == "latest" ]] && archive="$(just --justfile "{{ justfile() }}" borg-latest)"
+        just --justfile "{{ justfile() }}" borg-run info "::$archive"
+    fi
+
+# List the PostgreSQL dumps in an archive, with sizes — the fast answer to
+# "what databases do I have and how big are they?". Defaults to the newest
+# archive. Feed a name from here to `just borg-get`.
+#   just borg-dbs
+#   just borg-dbs borg-backup-2026-08-15T13:00:37.730369
+[arg("ARCHIVE", help="Archive name, or `latest`/omitted for the newest")]
+borg-dbs *ARCHIVE:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    archive="{{ ARCHIVE }}"
+    if [[ -z "$archive" || "$archive" == "latest" ]]; then archive="$(just --justfile "{{ justfile() }}" borg-latest)"; fi
+
+    gum style --foreground 212 --bold --border double --border-foreground 212 --padding "0 1" \
+      "$archive"
+
+    # Only regular files directly under a pg-hostname dir — that skips the
+    # directories themselves and borgmatic's dumps.json manifest.
+    just --justfile "{{ justfile() }}" borg-run list --format '{type}{TAB}{size}{TAB}{path}{NL}' "::$archive" \
+      | awk -F'\t' '
+            function human(b) {
+                if (b >= 1073741824) return sprintf("%.1f GiB", b/1073741824);
+                if (b >= 1048576)    return sprintf("%.1f MiB", b/1048576);
+                if (b >= 1024)       return sprintf("%.1f KiB", b/1024);
+                return sprintf("%d B", b);
+            }
+            $1=="-" && $3 ~ /^borgmatic\/postgresql_databases\/[^\/]+\/[^\/]+$/ {
+                split($3, p, "/"); host=p[3]; db=p[4];
+                printf "  %-24s %11s   %s\n", db, human($2), host
+            }' \
+      | sort
+    echo ""
+    gum style --foreground 244 "Dumps are pg_dump CUSTOM format — restore with pg_restore, not psql."
+    gum style --foreground 244 "Pull one down with: just borg-get <database>"
+
+# Download ONE database dump to the current directory as <database>.dump.
+# Streams straight out of the repo — nothing is written to rsync.net.
+#   just borg-get mealie
+#   just borg-get mealie borg-backup-2026-08-15T13:00:37.730369
+[arg("db", help="Database name as shown by `just borg-dbs`")]
+[arg("ARCHIVE", help="Archive name, or `latest`/omitted for the newest")]
+borg-get db *ARCHIVE:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    # `just` runs recipes from the justfile's own directory, not the one you
+    # typed the command in. Without this, dumps land in the dotfiles repo.
+    cd "{{ invocation_directory() }}"
+    # Having cd'd away, nested `just` calls can no longer find this justfile by
+    # search — name it explicitly, and pin its working directory to ours.
+    JUST=(just --justfile "{{ justfile() }}" --working-directory "$PWD")
+
+    archive="{{ ARCHIVE }}"
+    if [[ -z "$archive" || "$archive" == "latest" ]]; then archive="$("${JUST[@]}" borg-latest)"; fi
+
+    # Resolve the short database name to its full in-archive path. The pg
+    # hostname sits in the middle of the path and isn't worth making you type.
+    path="$("${JUST[@]}" borg-run list --format '{type}{TAB}{path}{NL}' "::$archive" \
+        | awk -F'\t' -v db="{{ db }}" '$1=="-" && $2 ~ /^borgmatic\/postgresql_databases\/[^\/]+\// {
+              n=split($2, p, "/"); if (p[4]==db) print $2
+          }')"
+
+    if [[ -z "$path" ]]; then
+        echo "✋ no database named '{{ db }}' in $archive" >&2
+        echo "   Run 'just borg-dbs' to see what's there." >&2
+        exit 1
+    fi
+    if [[ "$(printf '%s\n' "$path" | wc -l | tr -d ' ')" -gt 1 ]]; then
+        echo "✋ '{{ db }}' is ambiguous — matches more than one host:" >&2
+        printf '   %s\n' $path >&2
+        echo "   Use: just borg-run extract --stdout '::$archive' <full-path> > out.dump" >&2
+        exit 1
+    fi
+
+    out="{{ db }}.dump"
+    [[ -e "$out" ]] && { echo "✋ $out already exists here — move it aside first." >&2; exit 1; }
+
+    gum style --foreground 244 "$path  →  $PWD/$out"
+    "${JUST[@]}" borg-run extract --stdout "::$archive" "$path" > "$out"
+
+    gum style --foreground 46 --bold "✓ $out ($(du -h "$out" | cut -f1))"
+    gum style --foreground 244 "Inspect without restoring:  pg_restore --list $out"
+    gum style --foreground 244 "Restore:                    pg_restore -d <target-db> $out"
+
+# Stream any file out of an archive to stdout — no temp files, no extraction.
+# Good for peeking at small files, or piping a dump straight into pg_restore.
+#   just borg-cat latest borgmatic/postgresql_databases/dumps.json | jless
+#   just borg-cat latest etc/borgmatic.d/config.yaml
+[arg("archive", help="Archive name, or `latest`")]
+[arg("path", help="Full in-archive path, as shown by `just borg-list <archive>`")]
+borg-cat archive path:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    archive="{{ archive }}"
+    [[ "$archive" == "latest" ]] && archive="$(just --justfile "{{ justfile() }}" borg-latest)"
+    just --justfile "{{ justfile() }}" borg-run extract --stdout "::$archive" "{{ path }}"
+
+# Find paths matching a pattern inside an archive. Plain substring match, case
+# insensitive — for anything fancier use `just borg-list <archive>` and grep.
+#   just borg-find mastodon
+#   just borg-find config borg-backup-2026-08-15T13:00:37.730369
+[arg("pattern", help="Substring to match against in-archive paths")]
+[arg("ARCHIVE", help="Archive name, or `latest`/omitted for the newest")]
+borg-find pattern *ARCHIVE:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    archive="{{ ARCHIVE }}"
+    if [[ -z "$archive" || "$archive" == "latest" ]]; then archive="$(just --justfile "{{ justfile() }}" borg-latest)"; fi
+    just --justfile "{{ justfile() }}" borg-run list --format '{size}{TAB}{path}{NL}' "::$archive" \
+      | grep -i -- "{{ pattern }}" \
+      || { echo "no match for '{{ pattern }}' in $archive" >&2; exit 1; }
+
+# Compare two archives — what changed between them. Cheap way to see which
+# databases actually grew or shrank between two runs.
+#   just borg-diff borg-backup-2026-08-15T13:00:37.730369 latest
+[arg("a", help="Older archive name")]
+[arg("b", help="Newer archive name, or `latest`")]
+borg-diff a b:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    A="{{ a }}"; B="{{ b }}"
+    [[ "$A" == "latest" ]] && A="$(just --justfile "{{ justfile() }}" borg-latest)"
+    [[ "$B" == "latest" ]] && B="$(just --justfile "{{ justfile() }}" borg-latest)"
+    just --justfile "{{ justfile() }}" borg-run diff "::$A" "$B"
+
+# Mount an archive as a browsable filesystem — the nicest way to poke around.
+# Needs macFUSE, and the standalone borg release binary may not have FUSE
+# support compiled in; if it errors, fall back to borg-find / borg-cat.
+# Runs in the FOREGROUND so Ctrl-C unmounts cleanly.
+#   just borg-mount ~/mnt/borg
+#   just borg-mount ~/mnt/borg latest
+[arg("mountpoint", help="Directory to mount at — created if missing")]
+[arg("ARCHIVE", help="Archive name, or `latest`. Omit to mount the WHOLE repo (every archive as a subdir).")]
+borg-mount mountpoint *ARCHIVE:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    # So a relative mountpoint means "relative to where you typed this", not
+    # to the justfile's directory.
+    cd "{{ invocation_directory() }}"
+    JUST=(just --justfile "{{ justfile() }}" --working-directory "$PWD")
+    mkdir -p "{{ mountpoint }}"
+    archive="{{ ARCHIVE }}"
+    if [[ -n "$archive" ]]; then
+        [[ "$archive" == "latest" ]] && archive="$("${JUST[@]}" borg-latest)"
+        target="::$archive"
+    else
+        target=""   # whole repo: every archive shows up as a subdirectory
+    fi
+    gum style --foreground 244 "Mounting at {{ mountpoint }} — Ctrl-C to unmount."
+    "${JUST[@]}" borg-run mount -f ${target:+"$target"} "{{ mountpoint }}"
+
+# Unmount a borg filesystem mounted by borg-mount.
+[arg("mountpoint", help="The directory passed to borg-mount")]
+borg-umount mountpoint:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    cd "{{ invocation_directory() }}"
+    just --justfile "{{ justfile() }}" --working-directory "$PWD" borg-run umount "{{ mountpoint }}"
+
+# Restore files from an archive into the CURRENT DIRECTORY.
+# DRY-RUN BY DEFAULT — lists what it would write and touches nothing. Add --go.
+# For a single database dump, `just borg-get <db>` is easier.
+#   just borg-extract latest
+#   just borg-extract latest --go
+#   just borg-extract latest borgmatic/postgresql_databases/ --go
+[arg("archive", help="Archive name, or `latest`")]
+[arg("EXTRA", help="--go = write files for real; paths restrict what's restored; rest pass to borg extract")]
+borg-extract archive *EXTRA:
+    #!/usr/bin/env bash
+    set -euo pipefail
+
+    # `just` runs recipes from the justfile's own directory, not the one you
+    # typed the command in. Without this, borg would unpack the archive into
+    # the dotfiles repo instead of where you're standing. --working-directory
+    # carries that through to the nested call, which is what borg actually
+    # extracts into.
+    cd "{{ invocation_directory() }}"
+    JUST=(just --justfile "{{ justfile() }}" --working-directory "$PWD")
+
+    archive="{{ archive }}"
+    [[ "$archive" == "latest" ]] && archive="$("${JUST[@]}" borg-latest)"
+
+    live=0; pass=()
+    for a in {{ EXTRA }}; do
+        case "$a" in
+            --go) live=1 ;;
+            *)    pass+=("$a") ;;
+        esac
+    done
+
+    # borg extract writes into $PWD with no way to redirect it, so say plainly
+    # where that is — the usual mistake is running this from the wrong place.
+    gum style --foreground 212 --bold --border double --border-foreground 212 --padding "0 1" \
+      "Extracting INTO: $PWD"
+
+    if [[ $live -eq 0 ]]; then
+        gum style --foreground 46 --bold --border double --border-foreground 46 --padding "0 2" \
+          "🌵 DRY RUN — nothing will be written. Add --go to restore for real."
+        "${JUST[@]}" borg-run extract --dry-run --list "::$archive" ${pass[@]+"${pass[@]}"}
+    else
+        "${JUST[@]}" borg-run extract --list "::$archive" ${pass[@]+"${pass[@]}"}
+    fi

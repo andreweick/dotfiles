@@ -48,6 +48,15 @@ kustomize  = "latest"
 # Held on 3.x deliberately: `latest` is Helm 4, but vipers renders with
 # helm-controller v1.4.2, which embeds helm.sh/helm/v3 v3.19.0.
 helm       = "3"
+# Workstation-side client for the rsync.net repo the vipers borg-backup CronJobs
+# write to. Held on the 1.x line deliberately, for two reasons: the repo is
+# repokey-blake2 created against rsync.net's `borg14` server binary, and a Borg
+# 2.x client cannot open it (spouterinn borg-backup/README.md). `latest` is
+# 1.4.5 today — identical — but would jump the moment 2.0 ships stable, and
+# `mise upgrade` runs unattended every 7 days. Do NOT `brew install borgbackup`:
+# that formula is 2.x now, and a second binary on PATH is exactly the shadowing
+# failure this file's header warns about.
+borg       = "1"
 {{ if eq .chezmoi.os "linux" -}}
 # Linux only. On macOS atuin is Homebrew's (`brew "atuin",
 # restart_service: :changed`) because it wants a launchd daemon, which mise has
