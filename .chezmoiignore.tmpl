@@ -26,6 +26,13 @@ setup-age-key.sh
 .config/aptfile/apt_last_run.txt
 .config/mise/mise_last_run.txt
 
+# `omnictl` mints this PGP credential during its browser login and it lives only
+# 4 hours. Managing it means `chezmoi apply` overwrites the freshly-minted key
+# with a long-expired one, so omnictl breaks after every apply. Let omnictl own
+# the directory. Scoped to `keys/` on purpose: `.talos/config` and
+# `.talos/omni/config` are the break-glass configs and MUST stay managed.
+.talos/keys/
+
 {{/* --- Conditional Ignores --- */}}
 
 {{/*
