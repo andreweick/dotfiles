@@ -1,4 +1,5 @@
-export PATH=$HOME/.local/bin/:$HOME/bin:/usr/local/bin:/opt/homebrew/bin:/usr/local/go/bin:$HOME/.cargo/bin:$PATH
+# PATH now lives in ~/.zshenv, which zsh reads for non-interactive shells and
+# scripts too -- this file is interactive-only. See the comments there.
 
 # Set XDG_CONFIG_HOME for all the config files to live
 export XDG_CONFIG_HOME="$HOME/.config"
@@ -11,8 +12,14 @@ fpath=(~/.zsh/completions $fpath)
 autoload -U compinit
 compinit
 
-# mise - tool/runtime version manager. On Linux it installs our CLI tools
-# (replacing Homebrew). Harmless no-op where mise isn't installed.
+# mise - tool/runtime version manager. It owns the CLI tool layer on BOTH
+# platforms now (see .config/mise/config.toml); Homebrew is down to mise,
+# chezmoi, and atuin. Harmless no-op where mise isn't installed.
+#
+# This is the interactive half: activate hooks precmd/chpwd to put the real
+# install dirs ahead of the shims .zshenv set up, and exports [env] values from
+# any project mise.toml. Non-interactive shells never reach a prompt, so they
+# rely on those shims instead.
 if command -v mise &> /dev/null
 then
   eval "$(mise activate zsh)"

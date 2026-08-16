@@ -1,0 +1,48 @@
+# ~/.zshenv -- sourced by EVERY zsh: interactive, non-interactive, and scripts.
+# ~/.zshrc is interactive-only, which is exactly why PATH lives here now.
+#
+# WHY THIS FILE EXISTS: `mise activate` (still in .zshrc) does not set PATH
+# itself -- it installs a precmd/chpwd hook that rewrites PATH before each
+# prompt. AI agents, cron jobs, `zsh -c`, and plain scripts never reach a
+# prompt, so the hook never fires and no mise tool lands on PATH. Since mise
+# owns the tool layer on both platforms now (see .config/mise/config.toml),
+# that meant gh, node, jj and friends were simply missing from every
+# non-interactive shell.
+#
+# The mechanism that works without a prompt is shims:
+# ~/.local/share/mise/shims holds one small symlink per tool pointing back at
+# mise. No hook, nothing to source, and they still resolve per-directory
+# project pins from a repo's own mise.toml.
+#
+# Keep this file to PATH assignment only -- no eval, no `command -v`, no
+# `mise activate`. It runs for every zsh process, so the cost is paid
+# constantly and shell hooks do not belong here.
+#
+# LIMITS worth knowing:
+#  - Shims do NOT export `[env]` values from a project's mise.toml; only
+#    `mise activate` does. For anything that needs them -- e.g. spouterinn's
+#    age-encrypted GORELEASER_KEY / COSIGN_PRIVATE_KEY -- use
+#    `mise exec -- <cmd>` or `mise run <task>`.
+#  - launchd does not read this file. LaunchAgents need an absolute path or an
+#    explicit EnvironmentVariables block.
+
+# Keep PATH entries unique. .zshenv runs for nested shells too, so without this
+# the prepends below would stack up a duplicate-laden PATH.
+typeset -U path PATH
+
+export PATH=$HOME/.local/bin/:$HOME/bin:/usr/local/bin:/opt/homebrew/bin:/usr/local/go/bin:$HOME/.cargo/bin:$PATH
+
+# Prepended last, so shims sit ahead of everything above: a mise-owned tool
+# should win over a same-named Homebrew leftover.
+#
+# In interactive shells `mise activate` adds the real install dirs but leaves
+# the shims dir in front, so `command -v gh` reports a shim there too. That is
+# deliberate and worth keeping: every context -- prompt, script, cron, agent --
+# then resolves a tool the same way. Divergent PATH order between interactive
+# and non-interactive shells is precisely what let a stale mise atuin shadow
+# Homebrew's and corrupt the history DB. activate still exports project [env]
+# values regardless of this ordering (verified against spouterinn's
+# GORELEASER_KEY); the only cost is one extra exec per shim call.
+if [[ -d "$HOME/.local/share/mise/shims" ]]; then
+  export PATH="$HOME/.local/share/mise/shims:$PATH"
+fi
