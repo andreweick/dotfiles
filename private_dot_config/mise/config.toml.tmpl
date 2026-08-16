@@ -1,0 +1,63 @@
+# mise global tool list — the source of truth for CLI tools on BOTH platforms.
+#
+# This file (not brewfile.txt) owns the tool layer. Homebrew is now the
+# exception list on macOS: it keeps only what mise can't do — `mise` and
+# `chezmoi` (bootstrap: they must exist before any of this is readable) and
+# `atuin` (needs a launchd service via `restart_service: :changed`). Everything
+# else lives here and installs the same way on macOS and Linux.
+#
+# WHY THIS MATTERS: `mise activate` prepends each tool's install dir to PATH —
+# the actual binaries, not ~/.local/bin shims. So anything listed here SHADOWS
+# the Homebrew copy of the same name. Listing a tool in both managers means two
+# binaries racing on PATH, and for anything that owns state on disk that's a
+# real failure: brew's atuin daemon migrated history.db forward while the older
+# shimmed mise atuin refused to open it. Keep each tool in exactly one manager.
+#
+# Apply / update:   mise install        (or: just mise-up, or chezmoi apply)
+# Add a tool:       add the line here and commit — do NOT use `mise use -g`,
+#                   this is a chezmoi template and would be clobbered on apply.
+#
+# NOTE: most names below are mise registry short names (backed by aqua/github).
+# A few tools without a registry entry are pinned to an explicit github backend
+# (github:owner/repo). If `mise install` ever can't resolve a short name, switch
+# that line to its github:owner/repo form.
+
+[tools]
+age        = "latest"
+sops       = "latest"
+cosign     = "latest"
+gh         = "latest"
+rclone     = "latest"
+starship   = "latest"
+node       = "lts"
+just       = "latest"
+zoxide     = "latest"
+ripgrep    = "latest"
+fzf        = "latest"
+gum        = "latest"
+bat        = "latest"
+jj         = "latest"
+kubectl    = "latest"
+omnictl    = "latest"
+{{ if eq .chezmoi.os "linux" -}}
+# Linux only. On macOS atuin is Homebrew's (`brew "atuin",
+# restart_service: :changed`) because it wants a launchd daemon, which mise has
+# no equivalent for — and having it in both is what broke the history DB. On
+# Linux there's no Homebrew, no competing copy, and the daemon is optional.
+atuin      = "latest"
+{{ end -}}
+
+# Pinned to explicit backends (no short registry name, or name collisions)
+"github:superfly/flyctl"           = "latest"   # flyctl
+"github:tailwindlabs/tailwindcss"  = "latest"   # tailwindcss standalone CLI
+"github:PaulJuliusMartinez/jless"  = "latest"   # jless
+"github:benbjohnson/litestream"    = "latest"   # litestream
+"aqua:siderolabs/talos"            = "latest"   # talosctl
+"aqua:fluxcd/flux2"                = "latest"   # flux
+
+[settings.age]
+# Identity used to decrypt native age-encrypted `[env]` values in project
+# `mise.toml` files (e.g. spouterinn's `GORELEASER_KEY`, `COSIGN_PRIVATE_KEY`).
+# Without this, mise fails with "No age identities found for decryption".
+# CI overrides it with the `MISE_AGE_KEY` env var instead.
+key_file = "~/.config/age/key.txt"
