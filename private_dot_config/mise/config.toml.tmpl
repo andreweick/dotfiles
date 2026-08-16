@@ -39,6 +39,15 @@ bat        = "latest"
 jj         = "latest"
 kubectl    = "latest"
 omnictl    = "latest"
+# `just validate` in spouterinn builds four overlays with standalone kustomize
+# (justfile:295); CI does the same, unpinned. helm-controller embeds v5.7.1 for
+# the 8 HelmReleases using postRenderers — close enough on the v1beta1 API that
+# floating here is fine. `kubectl kustomize` embeds an older copy; not a substitute.
+kustomize  = "latest"
+# Chart-version verification before pinning a HelmRelease (`helm show chart`).
+# Held on 3.x deliberately: `latest` is Helm 4, but vipers renders with
+# helm-controller v1.4.2, which embeds helm.sh/helm/v3 v3.19.0.
+helm       = "3"
 {{ if eq .chezmoi.os "linux" -}}
 # Linux only. On macOS atuin is Homebrew's (`brew "atuin",
 # restart_service: :changed`) because it wants a launchd daemon, which mise has
@@ -54,6 +63,12 @@ atuin      = "latest"
 "github:benbjohnson/litestream"    = "latest"   # litestream
 "aqua:siderolabs/talos"            = "latest"   # talosctl
 "aqua:fluxcd/flux2"                = "latest"   # flux
+# int128/kubelogin — NOT Azure/kubelogin, a different tool sharing the short
+# name. Pinned because a registry remap would cost all cluster access. Ships a
+# `kubectl-oidc_login` symlink beside its binary, which is what makes
+# `kubectl oidc-login get-token` resolve; the vipers kubeconfig's exec
+# credential plugin calls exactly that.
+"aqua:int128/kubelogin"            = "latest"   # kubectl-oidc_login
 
 [settings.age]
 # Identity used to decrypt native age-encrypted `[env]` values in project
