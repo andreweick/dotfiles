@@ -1,30 +1,19 @@
-tap "benbjohnson/litestream"
-tap "siderolabs/tap"
-tap "fluxcd/tap"
+# Homebrew is the EXCEPTION list, not the tool list.
+#
+# ~/.config/mise/config.toml owns CLI tools on both macOS and Linux. Only what
+# mise genuinely can't provide belongs here:
+#
+#   mise, chezmoi  — bootstrap. They have to exist before either list is
+#                    readable, so they can't be managed by the thing they load.
+#   atuin          — needs a launchd background daemon (`brew services`), which
+#                    mise has no equivalent for.
+#
+# Do NOT re-add a tool here that's already in mise's [tools]. `mise activate`
+# prepends its install dirs to PATH, so the mise copy silently wins — and for
+# anything owning state on disk that's a real break, not just a version
+# surprise (brew's atuin daemon migrated history.db past what the shadowing
+# mise binary could open).
 
 brew "mise"
-brew "age"
-brew "sops"
-brew "atuin", restart_service: :changed
 brew "chezmoi"
-brew "cosign"
-brew "flyctl"
-brew "gh"
-brew "rclone"
-brew "starship"
-brew "node"
-brew "just"
-brew "tailwindcss"
-brew "zoxide"
-brew "ripgrep"
-brew "dust"
-brew "fzf"
-brew "gum"
-brew "jless"
-brew "bat"
-brew "jj"
-brew "litestream"
-brew "siderolabs/tap/omnictl"
-brew "siderolabs/tap/talosctl"
-brew "flux"
-brew "kubectl"
+brew "atuin", restart_service: :changed
