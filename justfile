@@ -424,8 +424,10 @@ exe-new-bare name="":
 
 # Create an exe.dev VM with your PUBLIC dotfiles + tools, but NO secrets.
 # A first-boot setup script installs chezmoi and applies the dotfiles straight
-# from GitHub, which also runs the mise/apt sync daemons to lay down the CLI
-# toolchain (rg, fzf, gh, …), then switches the login shell to zsh.
+# from GitHub, which also runs the apt sync daemon to lay down the base
+# packages (zsh, git, …), then switches the login shell to zsh. mise has no
+# global tools and no Linux auto-install anymore, so the CLI toolchain
+# (rg, fzf, gh, …) does NOT show up here — see brewfile.txt, macOS-only.
 # Upgrade later with `just exe-decrypt`.
 # Optional VM name (exe.dev generates one if omitted).
 #   just exe-new            # auto-named
@@ -448,12 +450,10 @@ exe-new name="":
     # hardcodes ~/.local/bin/chezmoi, and that dir is first on PATH.
     #
     # The trailing chsh points the login shell at the config this repo actually
-    # ships. exeuntu logs you in as bash, but mise -- along with starship, atuin
-    # and zoxide -- is activated only in dot_zshrc.tmpl and fish's
-    # conf.d/10-tools.fish.tmpl; there is no bash config here at all. Skip this
-    # and you land in bash with the whole mise toolchain installed under
-    # ~/.local/share/mise/installs yet absent from PATH, which reads as "the
-    # tools never installed". zsh itself arrives via aptfile.txt during the
+    # ships. exeuntu logs you in as bash, but starship, atuin and zoxide are
+    # activated only in dot_zshrc.tmpl; there is no bash config here at all.
+    # Skip this and you land in bash with none of that activated, which reads
+    # as "the tools never installed". zsh itself arrives via aptfile.txt during the
     # apply above, so the chsh has to follow it. `id -un` rather than $USER,
     # which a non-interactive first-boot script can't count on. Guarded and
     # non-fatal: a box without zsh keeps bash instead of failing setup.

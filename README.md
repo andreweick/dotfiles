@@ -8,9 +8,11 @@ skips the encrypted files. The one-command bootstrap below installs that key
 *before* the first `chezmoi init`, so a new machine comes up fully decrypted in
 a single pass.
 
-**Packages:** macOS uses Homebrew (`brewfile.txt`); Linux uses
-[mise](https://mise.jdx.dev) (`~/.config/mise/config.toml`). Both sync
-automatically (weekly, or when the list changes).
+**Packages:** macOS uses Homebrew (`brewfile.txt`), synced automatically
+(weekly, or when the list changes). Linux has no automated package layer
+beyond a small apt base (`aptfile.txt`). [mise](https://mise.jdx.dev) is
+installed but carries no global tools — it's used only for per-project tool
+pins (see e.g. `~/code/spouterinn/mise.toml`).
 
 ---
 
@@ -30,9 +32,9 @@ That's it — chezmoi is installed, the master key is decrypted to
 `~/.config/age/key.txt`, and all secrets (SSH keys, rclone/cosign/sops, fonts)
 are applied. Package managers set themselves up on first apply:
 - **macOS** — install Homebrew first: `/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"`
-- **Linux** — mise installs itself via `curl https://mise.run | sh` (no sudo, no
-  apt repo), then installs its tools in the same apply, plus a tiny apt base
-  layer (`zsh git openssh-client curl ca-certificates build-essential`).
+- **Linux** — just a tiny apt base layer
+  (`zsh git openssh-client curl ca-certificates build-essential`); there's no
+  automated CLI tool install on Linux.
 
 ### Without secrets (or chezmoi already installed)
 
@@ -62,7 +64,6 @@ chezmoi status        # show what would change
 Force an immediate package sync (bypass the weekly timer):
 
 ```sh
-MISE_FORCE_UPDATE=1 chezmoi apply     # Linux
 BREW_FORCE_UPDATE=1 chezmoi apply     # macOS
 ```
 
@@ -75,8 +76,8 @@ chezmoi edit ~/.config/rclone/secrets.conf      # edit an encrypted file (auto r
 chezmoi add --encrypt ~/.config/app/secret.conf # add a new encrypted file
 ```
 
-Add a package: edit `~/.config/mise/config.toml` (Linux) or
-`~/.config/brewfile/brewfile.txt` (macOS), then `chezmoi apply`.
+Add a package (macOS): edit `~/.config/brewfile/brewfile.txt`, then
+`chezmoi apply`. Linux has no automated package layer beyond `aptfile.txt`.
 
 ## Maintenance: rotate the master password
 
