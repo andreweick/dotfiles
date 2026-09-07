@@ -24,7 +24,6 @@ setup-age-key.sh
 # Timestamp/marker files for the package-sync daemons (so they aren't managed).
 .config/brewfile/brew_last_run.txt
 .config/aptfile/apt_last_run.txt
-.config/mise/mise_last_run.txt
 
 # `omnictl` mints this PGP credential during its browser login and it lives only
 # 4 hours. Managing it means `chezmoi apply` overwrites the freshly-minted key
@@ -34,14 +33,6 @@ setup-age-key.sh
 .talos/keys/
 
 {{/* --- Conditional Ignores --- */}}
-
-{{/*
-Fish shell config is Linux-only for now (zsh remains the shell on macOS).
-Ignore the whole fish config tree on any non-Linux OS.
-*/}}
-{{- if ne .chezmoi.os "linux" }}
-.config/fish
-{{- end }}
 
 {{/*
 This block is only active if the final decrypted age key does NOT exist at its

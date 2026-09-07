@@ -1,19 +1,24 @@
-# Homebrew is the EXCEPTION list, not the tool list.
+# Homebrew owns the general CLI tool layer on macOS now — mise's global
+# [tools] list is empty (see ~/.config/mise/config.toml). Per-project tool
+# pins still live in each project's own mise.toml (e.g. spouterinn, edc);
+# mise itself stays installed here so those still work.
 #
-# ~/.config/mise/config.toml owns CLI tools on both macOS and Linux. Only what
-# mise genuinely can't provide belongs here:
-#
-#   mise, chezmoi  — bootstrap. They have to exist before either list is
-#                    readable, so they can't be managed by the thing they load.
-#   atuin          — needs a launchd background daemon (`brew services`), which
-#                    mise has no equivalent for.
-#
-# Do NOT re-add a tool here that's already in mise's [tools]. `mise activate`
-# prepends its install dirs to PATH, so the mise copy silently wins — and for
-# anything owning state on disk that's a real break, not just a version
-# surprise (brew's atuin daemon migrated history.db past what the shadowing
-# mise binary could open).
+# Linux has no equivalent list yet — these tools aren't installed there by
+# this repo (see aptfile.txt).
 
 brew "mise"
 brew "chezmoi"
 brew "atuin", restart_service: :changed
+brew "age"
+brew "cosign"
+brew "gh"
+brew "rclone"
+brew "starship"
+brew "node"
+brew "just"
+brew "zoxide"
+brew "ripgrep"
+brew "fzf"
+brew "gum"
+brew "bat"
+brew "jless"

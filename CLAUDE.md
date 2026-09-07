@@ -166,7 +166,6 @@ dotfiles/
 │   │   ├── ghostty/                 # Terminal emulator config
 │   │   ├── just/                    # Just task runner config + chooser script
 │   │   ├── npm/                     # npm global package definitions
-│   │   ├── nvim/                    # Neovim (Kickstart-based)
 │   │   ├── rclone/                  # Cloud storage/sync config
 │   │   ├── starship.toml            # Prompt configuration
 │   │   └── wezterm/                 # Terminal emulator config
@@ -199,9 +198,6 @@ dotfiles/
 - Ghostty (Operator Mono SSm font, Ctrl+Grave quick terminal)
 - WezTerm (Dracula theme, Operator Mono SSm font)
 
-**Editor**
-- Neovim (Kickstart.nvim-based, Lua configuration)
-
 **Task Automation**
 - Just task runner with fallback recipe lookup
 - Interactive chooser (fzf/gum) for recipe selection
@@ -217,27 +213,29 @@ dotfiles/
 - Cosign for container signing
 - Age encryption for secrets (22 encrypted files total)
 
-**Package Management** (OS-specific, both with weekly + change-detection sync daemons)
-- **macOS — Homebrew** (`brewfile.txt`): `run_always_after_brew-interactive-cleanup.sh.tmpl`
-  (darwin-gated), with interactive cleanup of extraneous packages
-- **Linux — mise** (`~/.config/mise/config.toml`): installs CLI tools from
-  GitHub releases into `~/.local/bin` (no Homebrew, no sudo).
-  `run_always_after_mise-sync.sh.tmpl` runs `mise install` + `mise upgrade`,
-  and bootstraps mise itself via `curl https://mise.run | sh` when absent
-- **mise itself**: Homebrew on macOS (`brew "mise"` in `brewfile.txt`), the
-  standalone installer on Linux. mise isn't in the Debian/Ubuntu repos — apt
-  would need a third-party PPA/extrepo plus sudo, which the flat
-  `aptfile.txt` install loop can't express. Never install both on one machine:
-  two mise binaries means two sets of shims racing for PATH
-- **Linux — apt base layer** (`aptfile.txt`): only the floor mise can't provide
-  (zsh, git, openssh-client, curl, ca-certificates, build-essential) via
-  `run_always_after_apt-sync.sh.tmpl`
+**Package Management**
+- **macOS — Homebrew** (`brewfile.txt`): the general CLI tool layer, via
+  `run_always_after_brew-interactive-cleanup.sh.tmpl` (weekly + change-detection
+  sync, darwin-gated), with interactive cleanup of extraneous packages
+- **mise**: installed via Homebrew on macOS (`brew "mise"` in `brewfile.txt`).
+  Its global `[tools]` list (`~/.config/mise/config.toml`) is intentionally
+  empty — there's no sync daemon or auto-install script anymore. It's kept
+  installed only so per-project `mise.toml` files (e.g. spouterinn) can pin
+  their own tool versions when you cd into them; `[settings.age]` there
+  supplies the identity those files need to decrypt their own secrets
+- **Linux — apt** (`aptfile.txt`): intentionally empty. The sync daemon
+  (`run_always_after_apt-sync.sh.tmpl`) still runs on schedule but installs
+  nothing. Linux has no automated package source of any kind right now
 
-**Key Tools** (brewfile.txt on macOS, mirrored in mise config.toml on Linux)
-- Core: age, sops, cosign, atuin, starship
-- Build: node, tailwindcss, jj, litestream
-- Cloud: rclone, flyctl, gh, kubectl, flux, talosctl, omnictl
-- Utilities: ripgrep, dust, fzf, gum, zoxide, just, bat, jless
+**Key Tools** (brewfile.txt, macOS only — Linux has no automated equivalent)
+- Core: age, cosign, atuin, starship
+- Runtime: node
+- Cloud: rclone, gh
+- Utilities: ripgrep, fzf, gum, zoxide, just, bat, jless
+
+Project-specific tools (Kubernetes/cluster ops, release signing, per-app
+deploy tooling) are pinned in each project's own `mise.toml` instead — see
+e.g. `~/code/spouterinn/mise.toml` and `~/code/edc/mise.toml`.
 
 ### Dynamic Shell Completions
 
