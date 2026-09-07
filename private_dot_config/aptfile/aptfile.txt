@@ -1,14 +1,7 @@
-# APT Package List — base system layer only.
+# APT Package List — currently empty.
 #
-# mise's global tool list is now empty and its Linux auto-install scripts are
-# gone, so this is Linux's only automated package source: the shell, git,
-# ssh, and the toolchain age needs to run.
+# Linux has no automated package installs right now. The sync script (see
+# run_always_after_apt-sync.sh.tmpl) still runs on schedule but installs
+# nothing, since there are no package lines below.
 #
 # Lines starting with # are comments and will be skipped.
-
-zsh
-git
-openssh-client
-curl
-ca-certificates
-build-essential

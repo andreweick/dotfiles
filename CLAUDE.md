@@ -223,11 +223,9 @@ dotfiles/
   installed only so per-project `mise.toml` files (e.g. spouterinn) can pin
   their own tool versions when you cd into them; `[settings.age]` there
   supplies the identity those files need to decrypt their own secrets
-- **Linux — apt base layer** (`aptfile.txt`): the shell, git, and toolchain
-  age needs to run (zsh, git, openssh-client, curl, ca-certificates,
-  build-essential) via `run_always_after_apt-sync.sh.tmpl`. Linux has no
-  automated source for general CLI tools right now — that gap opened when
-  mise's Linux install/sync scripts were removed
+- **Linux — apt** (`aptfile.txt`): intentionally empty. The sync daemon
+  (`run_always_after_apt-sync.sh.tmpl`) still runs on schedule but installs
+  nothing. Linux has no automated package source of any kind right now
 
 **Key Tools** (brewfile.txt, macOS only — Linux has no automated equivalent)
 - Core: age, cosign, atuin, starship
