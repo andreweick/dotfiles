@@ -1,13 +1,12 @@
 # APT Package List — base system layer only.
 #
-# On Linux, CLI tools are installed by mise (see ~/.config/mise/config.toml),
-# NOT apt. This file is just the floor that mise can't provide: the shell,
-# git, ssh, and the toolchain mise/age need to run.
+# mise's global tool list is now empty and its Linux auto-install scripts are
+# gone, so this is Linux's only automated package source: the shell, git,
+# ssh, and the toolchain age needs to run.
 #
 # Lines starting with # are comments and will be skipped.
 
 zsh
-fish
 git
 openssh-client
 curl

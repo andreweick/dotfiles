@@ -1,0 +1,5 @@
+# Targets to actively delete on `chezmoi apply`, even though they're no
+# longer in source. Without this, removing a directory from source just
+# stops managing it — chezmoi leaves the orphaned copy in place.
+.config/nvim
+.config/fish
