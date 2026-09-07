@@ -4,6 +4,11 @@
 # Set XDG_CONFIG_HOME for all the config files to live
 export XDG_CONFIG_HOME="$HOME/.config"
 
+# exe.dev VMs use their own GitHub Enterprise host for `gh`.
+if [[ $USER == "exedev" && $HOME == "/home/exedev" ]]; then
+  export GH_HOST=github.int.exe.xyz
+fi
+
 # Activate zsh autocompletions
 # Add our custom completions directory to the function path (fpath)
 fpath=(~/.zsh/completions $fpath)
