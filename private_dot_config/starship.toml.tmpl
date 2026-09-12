@@ -6,7 +6,7 @@ command_timeout = 1000  # Change command timeout from 500 to 1000 ms
 # Baked in at `chezmoi apply` time (not checked per-prompt) -- same exe.dev
 # detection as the GH_HOST check in dot_zshrc.tmpl.
 {{- $isExeDev := and (eq .chezmoi.username "exedev") (eq .chezmoi.homeDir "/home/exedev") }}
-format = """$os$env_var{{ if $isExeDev }}🐡 {{ end }}$all"""  # Add custom formatting before other stuff
+format = """{{ if $isExeDev }}🐡 {{ end }}$os$env_var$all"""  # Add custom formatting before other stuff
 
 # Drop ugly default prompt characters
 [character]
