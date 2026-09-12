@@ -6,7 +6,20 @@ command_timeout = 1000  # Change command timeout from 500 to 1000 ms
 # Baked in at `chezmoi apply` time (not checked per-prompt) -- same exe.dev
 # detection as the GH_HOST check in dot_zshrc.tmpl.
 {{- $isExeDev := and (eq .chezmoi.username "exedev") (eq .chezmoi.homeDir "/home/exedev") }}
-format = """{{ if $isExeDev }}🐡 {{ end }}$os$env_var$all"""  # Add custom formatting before other stuff
+
+# Proxmox VE host: /etc/pve is the pmxcfs cluster filesystem, only mounted
+# on the hypervisor itself -- never present inside a VM/LXC running on it.
+{{- $isPVE := stat "/etc/pve" }}
+
+# VM guest (e.g. running on a PVE host): systemd-detect-virt --vm reports
+# "kvm" only for VM-type virtualization, so LXC containers don't match.
+{{- $virt := "" }}
+{{- if lookPath "systemd-detect-virt" }}
+{{-   $virt = output "sh" "-c" "systemd-detect-virt --vm 2>/dev/null || true" | trim }}
+{{- end }}
+{{- $isVM := eq $virt "kvm" }}
+
+format = """{{ if $isExeDev }}🐡 {{ end }}{{ if $isPVE }}🍯 {{ end }}{{ if $isVM }}🐝 {{ end }}$os$env_var$all"""  # Add custom formatting before other stuff
 
 # Drop ugly default prompt characters
 [character]
