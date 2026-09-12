@@ -43,4 +43,5 @@ window-padding-y = 10
 # (You can also set this to `left` or `right` if you only want one key to act as Alt).
 macos-option-as-alt = true
 
-shell-integration-features = ssh-env,ssh-terminfo
+# ---- no-terminfo -- don't try to install TIC database
+shell-integration-features = ssh-env,no-ssh-terminfo
