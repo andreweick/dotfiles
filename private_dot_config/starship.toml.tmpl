@@ -2,7 +2,11 @@
 
 add_newline = true  # Inserts a blank line between shell prompts
 command_timeout = 1000  # Change command timeout from 500 to 1000 ms
-format = """$os$env_var$all"""  # Add custom formatting before other stuff
+
+# Baked in at `chezmoi apply` time (not checked per-prompt) -- same exe.dev
+# detection as the GH_HOST check in dot_zshrc.tmpl.
+{{- $isExeDev := and (eq .chezmoi.username "exedev") (eq .chezmoi.homeDir "/home/exedev") }}
+format = """$os$env_var{{ if $isExeDev }}🐡 {{ end }}$all"""  # Add custom formatting before other stuff
 
 # Drop ugly default prompt characters
 [character]
