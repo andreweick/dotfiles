@@ -43,5 +43,13 @@ window-padding-y = 10
 # (You can also set this to `left` or `right` if you only want one key to act as Alt).
 macos-option-as-alt = true
 
-# ---- no-terminfo -- don't try to install TIC database
-shell-integration-features = ssh-env,no-ssh-terminfo
+# Disable ssh-env and ssh-terminfo shell-integration features.
+# - ssh-terminfo would auto-install Ghostty's terminfo entry (via infocmp/tic)
+#   on remote hosts over SSH. Not needed since terminfo is already installed
+#   on the VMs I connect to.
+# - ssh-env would rewrite TERM from xterm-ghostty to xterm-256color (and
+#   forward COLORTERM/TERM_PROGRAM*) for hosts lacking the terminfo entry.
+#   Also not needed for the same reason, and skipping it keeps TERM as
+#   xterm-ghostty so remote programs get its full capabilities.
+# To re-enable either: shell-integration-features = ssh-env,ssh-terminfo
+shell-integration-features = no-ssh-env,no-ssh-terminfo
