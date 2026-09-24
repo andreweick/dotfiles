@@ -40,6 +40,49 @@ czm-setup-age-key:
 czm-brew-update:
     BREW_FORCE_UPDATE=1 chezmoi apply
 
+# Refresh all vendored Shelley skills from upstream, then review `git diff`
+shelley-skills-update: shelley-skills-webawesome shelley-skills-ponytail
+
+# Vendor the Web Awesome component skill from its npm tarball (no npx).
+# webawesome-design is skipped on purpose (its description is over Shelley's
+# 1024-char limit, so Shelley would silently ignore it).
+#   just shelley-skills-webawesome          # latest release
+#   just shelley-skills-webawesome 3.14.0   # pinned
+shelley-skills-webawesome version="latest":
+    #!/usr/bin/env bash
+    set -euo pipefail
+    dest="{{ justfile_directory() }}/private_dot_config/shelley"
+    version="{{ version }}"
+    if [[ "$version" == latest ]]; then
+      version=$(curl -fsSL https://registry.npmjs.org/-/package/@awesome.me/webawesome/dist-tags | jq -r .latest)
+    fi
+    tmp=$(mktemp -d); trap 'rm -rf "$tmp"' EXIT
+    curl -fsSL "https://registry.npmjs.org/@awesome.me/webawesome/-/webawesome-${version}.tgz" \
+      | tar -xzf - -C "$tmp" package/dist/skills/webawesome
+    grep -qx 'name: webawesome' "$tmp/package/dist/skills/webawesome/SKILL.md"
+    rm -rf "$dest/webawesome"
+    cp -R "$tmp/package/dist/skills/webawesome" "$dest/webawesome"
+    echo "✅ webawesome skill @ ${version}"
+
+# Vendor the Ponytail skills from GitHub (no npx). Skips ponytail-gain and
+# ponytail-help (one-shot display commands that reference repo-only files).
+#   just shelley-skills-ponytail            # latest main
+#   just shelley-skills-ponytail e3ba2aa    # pinned commit/tag
+shelley-skills-ponytail ref="main":
+    #!/usr/bin/env bash
+    set -euo pipefail
+    dest="{{ justfile_directory() }}/private_dot_config/shelley"
+    ref="{{ ref }}"
+    tmp=$(mktemp -d); trap 'rm -rf "$tmp"' EXIT
+    curl -fsSL "https://github.com/DietrichGebert/ponytail/archive/${ref}.tar.gz" \
+      | tar -xzf - -C "$tmp" --strip-components=1
+    for skill in ponytail ponytail-review ponytail-audit ponytail-debt; do
+      grep -qx "name: ${skill}" "$tmp/skills/${skill}/SKILL.md"
+      rm -rf "$dest/${skill}"
+      cp -R "$tmp/skills/${skill}" "$dest/${skill}"
+    done
+    echo "✅ ponytail skills @ ${ref}"
+
 # Setup Atuin on second machine (login and sync)
 atuin-setup:
     atuin login -u maeick
