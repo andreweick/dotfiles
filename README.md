@@ -84,7 +84,9 @@ Agent skills for [Shelley](https://github.com/boldsoftware/shelley) are
 vendored (copied, no npx) into `private_dot_config/shelley/<skill>/SKILL.md`,
 which Shelley discovers at `~/.config/shelley/`:
 
-- `webawesome`, from the `@awesome.me/webawesome` npm tarball
+- `webawesome`, `webawesome-design`, from the `@awesome.me/webawesome` npm
+  tarball. The design skill's last description sentence is dropped to fit
+  Shelley's 1024-char limit
 - `ponytail`, `ponytail-review`, `ponytail-audit`, `ponytail-debt`, from
   [DietrichGebert/ponytail](https://github.com/DietrichGebert/ponytail)
 
