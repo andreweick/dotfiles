@@ -40,6 +40,63 @@ czm-setup-age-key:
 czm-brew-update:
     BREW_FORCE_UPDATE=1 chezmoi apply
 
+# Refresh all vendored Shelley skills from upstream, then review `git diff`
+shelley-skills-update: shelley-skills-webawesome shelley-skills-ponytail
+
+# Vendor the Web Awesome skills (webawesome, webawesome-design) from the npm
+# tarball (no npx). Shelley silently ignores skills whose description is over
+# 1024 chars, and upstream's webawesome-design is 1035, so its redundant last
+# sentence is dropped; the recipe fails if a description is still too long.
+#   just shelley-skills-webawesome          # latest release
+#   just shelley-skills-webawesome 3.14.0   # pinned
+shelley-skills-webawesome version="latest":
+    #!/usr/bin/env bash
+    set -euo pipefail
+    dest="{{ justfile_directory() }}/private_dot_config/shelley"
+    version="{{ version }}"
+    if [[ "$version" == latest ]]; then
+      version=$(curl -fsSL https://registry.npmjs.org/-/package/@awesome.me/webawesome/dist-tags | jq -r .latest)
+    fi
+    tmp=$(mktemp -d); trap 'rm -rf "$tmp"' EXIT
+    curl -fsSL "https://registry.npmjs.org/@awesome.me/webawesome/-/webawesome-${version}.tgz" \
+      | tar -xzf - -C "$tmp" package/dist/skills/webawesome package/dist/skills/webawesome-design
+    perl -0pi -e 's/ Pairs with the webawesome skill, which documents individual\s+component APIs\.//' \
+      "$tmp/package/dist/skills/webawesome-design/SKILL.md"
+    for skill in webawesome webawesome-design; do
+      src="$tmp/package/dist/skills/${skill}"
+      grep -qx "name: ${skill}" "$src/SKILL.md"
+      # Approximate description length (lines until the next top-level key, folded
+      # with spaces). It can undercount by a char or two, hence the 1020 margin.
+      len=$(awk '/^description:/{f=1; sub(/^description: *>? */,""); print; next} f&&/^[a-z-]+:/{exit} f' "$src/SKILL.md" \
+        | tr -s ' \n' ' ' | sed 's/^ //; s/ $//' | tr -d '\n' | wc -c | tr -d ' ')
+      if (( len > 1020 )); then
+        echo "❌ ${skill}: description is ${len} chars (Shelley max 1024)" >&2
+        exit 1
+      fi
+      rm -rf "$dest/${skill}"
+      cp -R "$src" "$dest/${skill}"
+    done
+    echo "✅ webawesome skills @ ${version}"
+
+# Vendor the Ponytail skills from GitHub (no npx). Skips ponytail-gain and
+# ponytail-help (one-shot display commands that reference repo-only files).
+#   just shelley-skills-ponytail            # latest main
+#   just shelley-skills-ponytail e3ba2aa    # pinned commit/tag
+shelley-skills-ponytail ref="main":
+    #!/usr/bin/env bash
+    set -euo pipefail
+    dest="{{ justfile_directory() }}/private_dot_config/shelley"
+    ref="{{ ref }}"
+    tmp=$(mktemp -d); trap 'rm -rf "$tmp"' EXIT
+    curl -fsSL "https://github.com/DietrichGebert/ponytail/archive/${ref}.tar.gz" \
+      | tar -xzf - -C "$tmp" --strip-components=1
+    for skill in ponytail ponytail-review ponytail-audit ponytail-debt; do
+      grep -qx "name: ${skill}" "$tmp/skills/${skill}/SKILL.md"
+      rm -rf "$dest/${skill}"
+      cp -R "$tmp/skills/${skill}" "$dest/${skill}"
+    done
+    echo "✅ ponytail skills @ ${ref}"
+
 # Setup Atuin on second machine (login and sync)
 atuin-setup:
     atuin login -u maeick

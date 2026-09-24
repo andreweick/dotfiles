@@ -78,6 +78,29 @@ chezmoi add --encrypt ~/.config/app/secret.conf # add a new encrypted file
 Add a package (macOS): edit `~/.config/brewfile/brewfile.txt`, then
 `chezmoi apply`. Linux has no automated package layer beyond `aptfile.txt`.
 
+## Shelley skills
+
+Agent skills for [Shelley](https://github.com/boldsoftware/shelley) are
+vendored (copied, no npx) into `private_dot_config/shelley/<skill>/SKILL.md`,
+which Shelley discovers at `~/.config/shelley/`:
+
+- `webawesome`, `webawesome-design`, from the `@awesome.me/webawesome` npm
+  tarball. The design skill's last description sentence is dropped to fit
+  Shelley's 1024-char limit
+- `ponytail`, `ponytail-review`, `ponytail-audit`, `ponytail-debt`, from
+  [DietrichGebert/ponytail](https://github.com/DietrichGebert/ponytail)
+
+Refresh from upstream, review the diff, commit, then `chezmoi apply`:
+
+```sh
+just shelley-skills-update                  # both, latest
+just shelley-skills-webawesome 3.14.0       # pin a release
+just shelley-skills-ponytail e3ba2aa        # pin a commit
+```
+
+Don't add Shelley's `shelley.db` or other state in `~/.config/shelley/` to
+chezmoi. Only add skill folders and `AGENTS.md`.
+
 ## Maintenance: rotate the master password
 
 On a machine that already has `~/.config/age/key.txt`:
