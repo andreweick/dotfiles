@@ -1,3 +1,4 @@
+@cert-authority *.kokovoko.org ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIIUcQtXfGr8wN0CNJ6Bkm917LDRL3gQhj015+HiA2Z+F peleg-ca
 @cert-authority *.spouterinn.org ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAINPKvp+nESN34ocaJtGdaSwxYZZi2BqkuIY/lks5Obam
 @cert-authority *.eick.com ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAINPKvp+nESN34ocaJtGdaSwxYZZi2BqkuIY/lks5Obam
 @cert-authority *.organmorgan.com ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAINPKvp+nESN34ocaJtGdaSwxYZZi2BqkuIY/lks5Obam
